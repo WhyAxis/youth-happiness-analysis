@@ -89,9 +89,9 @@ phobiasComplete <- complete(imputedData,2)
 imputedData <-mice(spending,m=5,maxit=5,meth='pmm',seed=500)
 spendingComplete <- complete(imputedData,2)
 
-distinctSmoking<-unique(healthHabits$Smoking, incomparables = FALSE)
-distinctAlcohol<-unique(healthHabits$Alcohol, incomparables = FALSE)
-healthHabitsCopy<-healthHabits
+distinctSmoking <- unique(healthHabits$Smoking, incomparables = FALSE)
+distinctAlcohol <- unique(healthHabits$Alcohol, incomparables = FALSE)
+healthHabitsCopy <- healthHabits
 #Since Smoking and Alcohol have categorical values, we have converted them into numerical values based on their levels.
 #Converting into numerical values will ensure easier imputation
 
@@ -100,16 +100,16 @@ healthHabitsCopy<-healthHabits
 # tried smoking-2
 # former smoker-4
 # current smoker-5
-smokingTransf<-transform(healthHabitsCopy, Smoking = factor(Smoking,levels = c("never smoked","tried smoking","former smoker","current smoker"),labels = c(1,2,4,5)))
+smokingTransf <- transform(healthHabitsCopy, Smoking = factor(Smoking,levels = c("never smoked","tried smoking","former smoker","current smoker"),labels = c(1,2,4,5)))
 
 #For Alcohol:
 # never-1
 # social drinker-3
 # drink a lot-5
-alcoholTransf<-transform(smokingTransf, Alcohol= factor(Alcohol,levels = c("never", "social drinker", "drink a lot"),labels = c(1,3,5)))
+alcoholTransf <- transform(smokingTransf, Alcohol= factor(Alcohol,levels = c("never", "social drinker", "drink a lot"),labels = c(1,3,5)))
 
 #Imputing health habits
-healthHabitsImp<-mice(alcoholTransf,m=5,maxit=5,meth='pmm',seed=500)
+healthHabitsImp <- mice(alcoholTransf,m=5,maxit=5,meth='pmm',seed=500)
 healthHabitsComplete <- complete(healthHabitsImp,2)
 
 finalImputedDataFrame <- cbind(demographicsComplete, personalityComplete, phobiasComplete, hobbiesComplete, healthHabitsComplete, spendingComplete, musicComplete, movieComplete )
