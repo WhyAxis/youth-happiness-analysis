@@ -77,3 +77,37 @@ sum(is.na(musicComplete))
 sum(is.na(movieComplete))
 sum(is.na(hobbiesComplete))
 
+phobias <- df[,64:73]
+healthHabits <- df[,74:76]
+spending <- df[,134:140]
+
+#Imputing Phobias
+imputedData <- mice(phobias,m=5,maxit=50,meth='pmm',seed=500)
+phobiasComplete <- complete(imputedData,2)
+
+#Imputing spending habits
+imputedData <-mice(spending,m=5,maxit=50,meth='pmm',seed=500)
+spendingComplete <- complete(imputedData,2)
+
+distinctSmoking<-unique(healthHabits$Smoking, incomparables = FALSE)
+distinctAlcohol<-unique(healthHabits$Alcohol, incomparables = FALSE)
+healthHabitsCopy<-healthHabits
+#Since Smoking and Alcohol have categorical values, we have converted them into numerical values based on their levels.
+#Converting into numerical values will ensure easier imputation
+
+#For Smoking:
+# never smoked-1
+# tried smoking-2
+# former smoker-4
+# current smoker-5
+smokingTransf<-transform(healthHabitsCopy, Smoking = factor(Smoking,levels = c("never smoked","tried smoking","former smoker","current smoker"),labels = c(1,2,4,5)))
+
+#For Alcohol:
+# never-1
+# social drinker-3
+# drink a lot-5
+alcoholTransf<-transform(smokingTransf, Alcohol= factor(Alcohol,levels = c("never", "social drinker", "drink a lot"),labels = c(1,3,5)))
+
+#Imputing health habits
+healthHabitsImp<-mice(alcoholTransf,m=5,maxit=50,meth='pmm',seed=500)
+healthHabitsComplete <- complete(healthHabitsImp,2)
