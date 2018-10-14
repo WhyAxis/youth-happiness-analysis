@@ -24,7 +24,12 @@ pTMissingPattern <- md.pattern(personalityTraitsMissing,plot = TRUE)
 dfMissing <- df[rowSums(is.na(df))>3,]
 md.pattern(dfMissing,plot=TRUE)
 
-# Before proceeding with imputations we need to encode the categorical variables into numeruc factors.
+# Before proceeding with imputations we need to encode the categorical variables into numeric factors.
+table(is.na(personalityTraits$Internet.usage))
+table(is.na(personalityTraits$Punctuality))
+table(is.na(personalityTraits$Lying))
+print(demMissingPattern)
+# We observe that none of the categorical variables in personalityTraits have any missing values.Same with Demographic Data.
 tempData <- mice(personalityTraits,m=5,maxit=50,meth='pmm',seed=500)
 personalityComplete <- complete(tempData,1)
 # verifying omittion of NA values
