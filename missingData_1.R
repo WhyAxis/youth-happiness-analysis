@@ -30,12 +30,12 @@ table(is.na(personalityTraits$Punctuality))
 table(is.na(personalityTraits$Lying))
 print(demMissingPattern)
 # We observe that none of the categorical variables in personalityTraits have any missing values.Same with Demographic Data.
-tempData <- mice(personalityTraits,m=5,maxit=50,meth='pmm',seed=500)
+tempData <- mice(personalityTraits,m=5,maxit=5,meth='pmm',seed=500)
 personalityComplete <- complete(tempData,1)
 # verifying omittion of NA values
 table(is.na(personalityComplete))
 
-tempData <- mice(demographics,m=5,maxit=50,meth='pmm',seed=500)
+tempData <- mice(demographics,m=5,maxit=5,meth='pmm',seed=500)
 demographicsComplete <- complete(tempData,1)
 # verifying omittion of NA values
 table(is.na(demographicsComplete))
@@ -61,15 +61,15 @@ movieMissingPattern <- md.pattern(movieMissing)
 #From the above plots it can be observed that there is no pattern in missing values and hence can be assumed that data is missing at random.
 
 #Imputing missing data in music with predictive mean
-imputedData <- mice(music, m=3, maxit = 50, method = 'pmm', seed = 500)
+imputedData <- mice(music, m=3, maxit = 5, method = 'pmm', seed = 500)
 musicComplete <-complete(imputedData,1) 
 
 #imputing missing data in movies with predictive mean
-imputedData <- mice(movie, m=3, maxit = 50, method = 'pmm', seed = 500)
+imputedData <- mice(movie, m=3, maxit = 5, method = 'pmm', seed = 500)
 movieComplete <-complete(imputedData,1) 
 
 #imputing missing data in hobbies with predictive mean
-imputedData <- mice(hobbies, m=3, maxit = 50, method = 'pmm', seed = 500)
+imputedData <- mice(hobbies, m=3, maxit = 5, method = 'pmm', seed = 500)
 hobbiesComplete <-complete(imputedData,1) 
 
 #Verifying removal of NA values
@@ -82,11 +82,11 @@ healthHabits <- df[,74:76]
 spending <- df[,134:140]
 
 #Imputing Phobias
-imputedData <- mice(phobias,m=5,maxit=50,meth='pmm',seed=500)
+imputedData <- mice(phobias,m=5,maxit=5,meth='pmm',seed=500)
 phobiasComplete <- complete(imputedData,2)
 
 #Imputing spending habits
-imputedData <-mice(spending,m=5,maxit=50,meth='pmm',seed=500)
+imputedData <-mice(spending,m=5,maxit=5,meth='pmm',seed=500)
 spendingComplete <- complete(imputedData,2)
 
 distinctSmoking<-unique(healthHabits$Smoking, incomparables = FALSE)
@@ -109,5 +109,8 @@ smokingTransf<-transform(healthHabitsCopy, Smoking = factor(Smoking,levels = c("
 alcoholTransf<-transform(smokingTransf, Alcohol= factor(Alcohol,levels = c("never", "social drinker", "drink a lot"),labels = c(1,3,5)))
 
 #Imputing health habits
-healthHabitsImp<-mice(alcoholTransf,m=5,maxit=50,meth='pmm',seed=500)
+healthHabitsImp<-mice(alcoholTransf,m=5,maxit=5,meth='pmm',seed=500)
 healthHabitsComplete <- complete(healthHabitsImp,2)
+
+finalImputedDataFrame <- cbind(demographicsComplete, personalityComplete, phobiasComplete, hobbiesComplete, healthHabitsComplete, spendingComplete, musicComplete, movieComplete )
+write.csv(finalImputedDataFrame,file = "imputedResponses.csv")
