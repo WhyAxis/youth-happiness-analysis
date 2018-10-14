@@ -47,33 +47,33 @@ movie <- df[,20:31]
 hobbies <-df[,32:63]
 
 #We find out the rows which have missing values and analyse the pattern
-music_missing <- music[!complete.cases(music),] #There are 79 observations with missing values.
-movie_missing <- movie[!complete.cases(movie),] #There are 36 observations with missing values.
-hobbies_missing <- hobbies[!complete.cases(hobbies),] #There are 124 observations with missing values.
+musicMissing <- music[!complete.cases(music),] #There are 79 observations with missing values.
+movieMissing <- movie[!complete.cases(movie),] #There are 36 observations with missing values.
+hobbiesMissing <- hobbies[!complete.cases(hobbies),] #There are 124 observations with missing values.
 
-pattern_music <- md.pattern(music_missing)
+musicMissingPattern <- md.pattern(musicMissing)
 #There are not more than 8 missing values for each column.
-pattern_hobbies <- md.pattern(hobbies_missing)
+hobiesMissingPattern <- md.pattern(hobbiesMissing)
 #The maximum number of missing values is 15 for the column Passive sport.
-pattern_movie <- md.pattern(movie_missing)
+movieMissingPattern <- md.pattern(movieMissing)
 #Column Documentary has maximum number of missing values.
 
 #From the above plots it can be observed that there is no pattern in missing values and hence can be assumed that data is missing at random.
 
 #Imputing missing data in music with predictive mean
-imputed_Data <- mice(music, m=3, maxit = 150, method = 'pmm', seed = 500)
-music_imputed <-complete(imputed_Data,1) 
+imputedData <- mice(music, m=3, maxit = 50, method = 'pmm', seed = 500)
+musicComplete <-complete(imputedData,1) 
 
 #imputing missing data in movies with predictive mean
-imputed_Data <- mice(movie, m=3, maxit = 50, method = 'pmm', seed = 500)
-movie_imputed <-complete(imputed_Data,1) 
+imputedData <- mice(movie, m=3, maxit = 50, method = 'pmm', seed = 500)
+movieComplete <-complete(imputedData,1) 
 
 #imputing missing data in hobbies with predictive mean
-imputed_Data <- mice(hobbies, m=3, maxit = 50, method = 'pmm', seed = 500)
-hobbies_imputed <-complete(imputed_Data,1) 
+imputedData <- mice(hobbies, m=3, maxit = 50, method = 'pmm', seed = 500)
+hobbiesComplete <-complete(imputedData,1) 
 
 #Verifying removal of NA values
-sum(is.na(music_imputed))
-sum(is.na(movie_imputed))
-sum(is.na(hobbies_imputed))
+sum(is.na(musicComplete))
+sum(is.na(movieComplete))
+sum(is.na(hobbiesComplete))
 
