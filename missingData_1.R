@@ -1,6 +1,6 @@
 library(mice)
 
-df <- read.csv("~/Downloads/DA/young-people-survey/youth-happiness-analysis/responses.csv")
+df <- read.csv("responses.csv")
 
 personalityTraits <- df[,c(77:133)]
 demographics <- df[,c(141:150)]
