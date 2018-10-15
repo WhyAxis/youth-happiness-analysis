@@ -77,3 +77,18 @@ for (factorV in happinessFactors){
           xlab=factorV, col=c("#000019","#0000ff","#7f7fff","#b2b2ff","#e5e5ff"))
   legend("topright",legend = rownames(counts),fill = c("#000019","#0000ff","#7f7fff","#b2b2ff","#e5e5ff") ,ncol = 1,cex=0.4)
 }
+
+
+
+#Inverting the values of Sadness Factors and performing PCA
+modify <- function(x) 5-x
+
+modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
+pcaHappinessSadness <- prcomp(modifiedHappinessSadness)
+pcaHappinessSadness = as.data.frame(pcaHappinessSadness$x[,1])
+
+category <- vector(length = 1010)
+modifiedHappinessSadness = cbind(modifiedHappinessSadness,pcaHappinessSadness,category)
+colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
+modifiedHappinessSadness$category[modifiedHappinessSadness$pcaHappinessSadness<0] = "FALSE"
+modifiedHappinessSadness$category[modifiedHappinessSadness$pcaHappinessSadness>0] = "TRUE"
