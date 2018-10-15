@@ -28,6 +28,7 @@ for (factorV in happinessFactors){
 # factors across sections of our dataset to find the variables which effect these factors the most and in 
 # the end effect the happiness / sadness of people.
 
+
 # Since analysing for ten factors ,we bottle it down to the principal components that indicate happiness
 # We invert those which indicate sadness and perform PCA to obtain the Principal Component which shows if 
 # a person is happy or not.
@@ -45,6 +46,15 @@ modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] =
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] = "TRUE"
 df$Happy <- modifiedHappinessSadness$Happy
 # The first ten columns show th demographics
+
+dev.off()
+par(mfrow=c(2,5),mar=c(2,2,2,2))
+for (factorV in happinessFactors){
+  hist(happinessSadness[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
+}
+
+# The first ten columns show the demographics
+
 # As we studied in prior kernels,considering bmi instead if height and weight as separate metrics is better.
 # We have established that the height is in cms and weight in kgs.
 
