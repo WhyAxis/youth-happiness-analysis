@@ -138,61 +138,6 @@ ggplot(relevantTraits, aes(x=Traits,y=corrVals,fill = Traits)) + geom_bar(stat="
  
 print(relevantTraits$Traits)
 # We observe that amongst the personality traits in consideration only a few show plausible correlation with the Happiness quotient.
-# 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-personalityTraits <- df
-corrVals <- list()
-i <- 1
-for(variable in colnames(personalityTraits)){
-  print(variable)
-  corrVals[i] <- GoodmanKruskalGamma(personalityTraits[[variable]],df$Self.criticism)
-  i <- i + 1
-}
-corrVals <- as.numeric(corrVals)
-setNames(corrVals,colnames(personalityTraits))
-
-corrVals <- data.frame(corrVals)
-corrVals$Traits = as.vector(colnames(personalityTraits))
-corrValsModified <- corrVals
-corrValsModified$Traits <- factor(corrValsModified$Traits, levels = corrValsModified$Traits[order(-corrValsModified$corrVals)])
-
-dev.off()
-ggplot(corrValsModified, aes(x=Traits,y=corrVals,fill = Traits)) + geom_bar(stat="identity") + scale_fill_hue(guide = F) + coord_flip()
-
-relevantTraits <- corrValsModified[(corrValsModified$corrVals >= 0.1 | corrValsModified$corrVals <= -0.1),]
-ggplot(relevantTraits, aes(x=Traits,y=corrVals,fill = Traits)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
-
-print(relevantTraits$Traits)
-=======
-
 # Analysis of music preferences wrt Happy Label.
 musicData <- df[,121:139]
 musicColNames <- colnames(musicData)
@@ -304,4 +249,3 @@ dev.off()
 ggplot(corrValsModifiedPhobias, aes(x=Phobias,y=corrPhobias,fill =Phobias)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
 relevantPhobias <- corrValsModifiedPhobias[(corrValsModifiedPhobias$corrVals >= 0.1 | corrValsModifiedPhobias$corrVals <= -0.1),]
 
->>>>>>> c62fb89b93250ac3d29bc61b00533cadfd12d655
