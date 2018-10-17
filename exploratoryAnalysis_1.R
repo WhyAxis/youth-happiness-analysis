@@ -257,7 +257,49 @@ corrPhobias <- as.numeric(corrPhobias)
 corrPhobias <- data.frame(corrPhobias)
 corrPhobias$Phobias = as.vector(phobiasColNames)
 corrValsModifiedPhobias<-corrPhobias
-dev.off()
-ggplot(corrValsModifiedPhobias, aes(x=Phobias,y=corrPhobias,fill =Phobias)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+ggplot(corrValsModifiedPhobias, aes(x=Phobias,y=corrPhobias,fill =Phobias)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()+xlab("Phobias") +ylab("Correlation of Phobias with happiness label") +ggtitle("Plot of correlation of various Phobias with Happiness Label") 
 relevantPhobias <- corrValsModifiedPhobias[(corrValsModifiedPhobias$corrVals >= 0.1 | corrValsModifiedPhobias$corrVals <= -0.1),]
+
+
+#Analyzing spending habits wrt happiness label
+spendingHabits<-df[,114:120]
+spendingHabitsColNames<-colnames(spendingHabits)
+spendingHabits$Happy<-df$Happy
+spendingHabits$Happy[spendingHabits$Happy == TRUE] = 1
+spendingHabits$Happy[spendingHabits$Happy == FALSE] = 0
+corrSpendingHabits <- list()
+i <- 1
+for(variable in spendingHabitsColNames){
+  corrSpendingHabits[i] <- GoodmanKruskalGamma(spendingHabits[[variable]],spendingHabits$Happy)
+  i <- i + 1
+}
+corrSpendingHabits <- as.numeric(corrSpendingHabits)
+corrSpendingHabits <- data.frame(corrSpendingHabits)
+corrSpendingHabits$SpendingHabits = as.vector(spendingHabitsColNames)
+corrValsModifiedSpendingHabits<-corrSpendingHabits
+corrValsModifiedSpendingHabits$SpendingHabits<-factor(corrValsModifiedSpendingHabits$SpendingHabits, levels = corrValsModifiedSpendingHabits$SpendingHabits[order(-corrValsModifiedSpendingHabits$corrSpendingHabits)])
+ggplot(corrValsModifiedSpendingHabits, aes(x=SpendingHabits,y=corrSpendingHabits,fill =SpendingHabits)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()+xlab("Spending Habits") +ylab("Correlation of Spending habits with happiness label") +ggtitle("Plot of correlation of various Spending habits with Happiness Label") 
+relevantSpendingHabits <- corrValsModifiedSpendingHabits[(corrValsModifiedSpendingHabits$corrVals >= 0.1 | corrValsModifiedSpendingHabits$corrVals <= -0.1),]
+
+
+#Analyzing health habits wrt happiness label
+healthHabits<-df[,111:113]
+healthHabitsColNames<-colnames(healthHabits)
+healthHabits$Happy<-df$Happy
+healthHabits$Happy[healthHabits$Happy == TRUE] = 1
+healthHabits$Happy[healthHabits$Happy == FALSE] = 0
+corrHealthHabits <- list()
+i <- 1
+for(variable in healthHabitsColNames){
+  corrHealthHabits[i] <- GoodmanKruskalGamma(healthHabits[[variable]],healthHabits$Happy)
+  i <- i + 1
+}
+corrHealthHabits <- as.numeric(corrHealthHabits)
+corrHealthHabits <- data.frame(corrHealthHabits)
+corrHealthHabits$HealthHabits = as.vector(healthHabitsColNames)
+corrValsModifiedHealthHabits<-corrHealthHabits
+corrValsModifiedHealthHabits$HealthHabits<- factor(corrValsModifiedHealthHabits$HealthHabits, levels = corrValsModifiedHealthHabits$HealthHabits[order(-corrValsModifiedHealthHabits$corrHealthHabits)])
+ggplot(corrValsModifiedHealthHabits, aes(x=HealthHabits,y=corrHealthHabits,fill =HealthHabits)) + geom_bar(stat="identity") + scale_fill_hue()+coord_flip() +xlab("Health Habits") +ylab("Correlation of Health Habits with happiness label") +ggtitle("Plot of Correlation of various Health habits with Happiness Label") 
+relevantHealthHabits <- corrValsModifiedHealthHabits[(corrValsModifiedHealthHabits$corrVals >= 0.1 | corrValsModifiedHealthHabits$corrVals <= -0.1),]
+
 
