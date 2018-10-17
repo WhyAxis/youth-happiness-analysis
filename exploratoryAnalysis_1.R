@@ -5,7 +5,7 @@ library(DescTools)
 # setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 colnames <- read.csv("columns.csv")
-# Following are the columns we chose as parameters to judge how happy pr sad a person is.
+# Following are the columns we chose as parameters to judge how happy or sad a person is.
 happinessFactors <- c("Hypochondria","Loneliness","Dreams","Number.of.friends","Mood.swings",
                       "Getting.angry","Life.struggles","Happiness.in.life","Energy.levels","Personality")
 happinessSadness <- df[happinessFactors]
@@ -80,8 +80,8 @@ i = 1
 dev.off()
 par(mfrow=c(2,5), mar=c(1,1,1,1))
 for (factorV in happinessFactors){
-    plot(density(femaleData[[factorV]]),col = "blue")
-    lines(density(maleData[[factorV]]),col = "red")
+    plot(density(femaleData[[factorV]]),col="blue")
+    lines(density(maleData[[factorV]]),col="red")
         
 }
 dev.off()
@@ -121,7 +121,7 @@ for (factorV in happinessFactors){
 # Analysis of various personality traits wrt Happy Label.
 workingData <- df[,c(12:67)]
 nreqVariables = names(workingData) %in% happinessFactors
-personalityTraits <- workingData[!nreqVariables]
+personalityTraits<-workingData[!nreqVariables]
 workingData$Happy = df$Happy
 workingData$Happy[workingData$Happy == TRUE] = 1
 workingData$Happy[workingData$Happy == FALSE] = 0
@@ -238,4 +238,26 @@ testMovie$Predicted[testMovie$Predicted <3 ] = 0
 testMovie$Predicted[testMovie$Predicted ==3] = 1
 confusionMatrix(as.factor(testMovie$Happy),as.factor(testMovie$Predicted))
 #We get an accuracy of 0.58 when predicting happiness label using K-means clustering on movie preferences.
+
+
+
+#Analysing phobias wrt happy label
+phobias<-df[,69:78]
+phobiasColNames<-colnames(phobias)
+phobias$Happy<-df$Happy
+phobias$Happy[phobias$Happy == TRUE] = 1
+phobias$Happy[phobias$Happy == FALSE] = 0
+corrPhobias <- list()
+i <- 1
+for(variable in phobiasColNames){
+  corrPhobias[i] <- GoodmanKruskalGamma(phobias[[variable]],phobias$Happy)
+  i <- i + 1
+}
+corrPhobias <- as.numeric(corrPhobias)
+corrPhobias <- data.frame(corrPhobias)
+corrPhobias$Phobias = as.vector(phobiasColNames)
+corrValsModifiedPhobias<-corrPhobias
+dev.off()
+ggplot(corrValsModifiedPhobias, aes(x=Phobias,y=corrPhobias,fill =Phobias)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+relevantPhobias <- corrValsModifiedPhobias[(corrValsModifiedPhobias$corrVals >= 0.1 | corrValsModifiedPhobias$corrVals <= -0.1),]
 
