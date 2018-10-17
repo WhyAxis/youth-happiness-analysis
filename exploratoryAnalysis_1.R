@@ -2,7 +2,7 @@ library(corrplot)
 library(dplyr)
 library(ggplot2)
 library(DescTools)
-# setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
+setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 colnames <- read.csv("columns.csv")
 # Following are the columns we chose as parameters to judge how happy or sad a person is.
@@ -17,17 +17,15 @@ plot1 = corrplot.mixed(correlationMatrix, lower.col = "black", number.cex = .7,t
 covarianceMatrix = cov(happinessSadness, use="na.or.complete")
 covarianceMatrix
 
-dev.off()
-par(mfrow=c(2,5))
-for (factorV in happinessFactors){
-  hist(df[[factorV]])
-  lines(density(df[[factorV]]),col = "red")
-}
 # We consider the above mentoned variables as the factors of happiness and sadness.From their correlation 
 # plot we can infer that none of the variables under study are very highly correlated.So,we use these ten 
 # factors across sections of our dataset to find the variables which effect these factors the most and in 
 # the end effect the happiness / sadness of people.
-
+dev.off()
+par(mfrow=c(2,5),mar=c(2,2,2,2))
+for (factorV in happinessFactors){
+  hist(happinessSadness[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
+}
 
 # Since analysing for ten factors ,we bottle it down to the principal components that indicate happiness
 # We invert those which indicate sadness and perform PCA to obtain the Principal Component which shows if 
@@ -45,13 +43,6 @@ colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] = "FALSE"
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] = "TRUE"
 df$Happy <- modifiedHappinessSadness$Happy
-# The first ten columns show th demographics
-
-dev.off()
-par(mfrow=c(2,5),mar=c(2,2,2,2))
-for (factorV in happinessFactors){
-  hist(happinessSadness[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
-}
 
 # The first ten columns show the demographics
 
@@ -116,12 +107,10 @@ for (factorV in happinessFactors){
   legend("topright",legend = rownames(counts),fill = c("#000019","#0000ff","#7f7fff","#b2b2ff","#e5e5ff") ,ncol = 1,cex=0.4)
 }
 
-
-
 # Analysis of various personality traits wrt Happy Label.
 workingData <- df[,c(12:67)]
 nreqVariables = names(workingData) %in% happinessFactors
-personalityTraits<-workingData[!nreqVariables]
+personalityTraits <- workingData[!nreqVariables]
 workingData$Happy = df$Happy
 workingData$Happy[workingData$Happy == TRUE] = 1
 workingData$Happy[workingData$Happy == FALSE] = 0
@@ -149,7 +138,6 @@ ggplot(relevantTraits, aes(x=Traits,y=corrVals,fill = Traits)) + geom_bar(stat="
  
 print(relevantTraits$Traits)
 # We observe that amongst the personality traits in consideration only a few show plausible correlation with the Happiness quotient.
-
 # Analysis of music preferences wrt Happy Label.
 musicData <- df[,121:139]
 musicColNames <- colnames(musicData)
