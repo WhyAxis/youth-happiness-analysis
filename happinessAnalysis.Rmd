@@ -1,0 +1,132 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+library(corrplot)
+library(dplyr)
+library(ggplot2)
+library(DescTools)
+setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
+df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
+```
+
+```{r}
+# As we studied in prior kernels,considering bmi instead if height and weight as separate metrics is better.
+# We have established that the height is in cms and weight in kgs.
+
+bmi = function(height,weight){
+  return(weight/(height/100)^2)
+}
+df$bmi = bmi(df$Height,df$Weight)
+
+hist(df$bmi,col = "blue",breaks = 100,xlim = c(12,60))
+# Since BMI is the numerical value of a scale different from other variables we redcode the data to the same scale.
+# 1,2,3,4,5 being underweight,fit,healthy,overweight and obese respectively.
+df$bmi[df$bmi <= 18.5] = 1
+df$bmi[df$bmi > 18.5 & df$bmi <= 20] = 2
+df$bmi[df$bmi > 20 & df$bmi <= 25] = 3
+df$bmi[df$bmi > 25 & df$bmi <= 30] = 4
+df$bmi[df$bmi > 30] = 5
+```
+
+```{r}
+happinessFactors <- c("Hypochondria","Loneliness","Dreams","Number.of.friends","Mood.swings",
+                      "Getting.angry","Life.struggles","Happiness.in.life","Energy.levels","Personality")
+happinessSadness <- df[happinessFactors]
+
+# We consider the above mentoned variables as the factors of happiness and sadness.From their correlation 
+# plot we can infer that none of the variables under study are very highly correlated.So,we use these ten 
+# factors across sections of our dataset to find the variables which effect these factors the most and in 
+# the end effect the happiness / sadness of people.
+par(mfrow=c(2,5),mar=c(2,2,2,2))
+for (factorV in happinessFactors){
+  hist(happinessSadness[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
+}
+
+```
+
+```{r}
+modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
+pcaHappinessSadness <- prcomp(modifiedHappinessSadness)
+pcaHappinessSadness = as.data.frame(pcaHappinessSadness$x[,1])
+Happy <- vector(length = 1010)
+modifiedHappinessSadness = cbind(modifiedHappinessSadness,pcaHappinessSadness,Happy)
+colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
+modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] = "FALSE"
+modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] = "TRUE"
+df$Happy <- modifiedHappinessSadness$Happy
+happinessCount <- table(df$Happy,df$Gender)
+barplot(happinessCount, main = paste("Happy vs Gender"), col = c("red","blue"))
+legend("topright",legend = rownames(happinessCount),fill = c("red","blue") ,ncol = 1,cex = 0.6)
+```
+```{r}
+
+findCorrelation <- function(workingData,predictorVariable){
+  corrVals <- list()
+i <- 1
+for(variable in colnames(workingData)){
+  # print(variable)
+  corrVals[i] <- GoodmanKruskalGamma(workingData[[variable]],predictorVariable)
+  i <- i + 1
+}
+corrVals <- as.numeric(corrVals)
+setNames(corrVals,colnames(workingData))
+corrVals <- data.frame(corrVals)
+
+corrVals$Attributes = as.vector(colnames(workingData))
+corrValsModified <- corrVals
+corrValsModified$Attributes <- factor(corrValsModified$Attributes, levels = corrValsModified$Attributes[order(-corrValsModified$corrVals)])
+ggplot(corrValsModified, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+relevantTraits <- corrValsModified[(corrValsModified$corrVals >= 0.25 | corrValsModified$corrVals <= -0.25),]
+ggplot(relevantTraits, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+
+# print(relevantTraits$Attributes)
+}
+
+```
+
+```{r}
+# Analysis of various personality traits wrt Happy Label.
+workingData <- df
+nreqVariables = names(workingData) %in% happinessFactors
+# workingData$Happy = df$Happy
+workingData$Happy[workingData$Happy == TRUE] = 1
+workingData$Happy[workingData$Happy == FALSE] = 0
+findCorrelation(workingData = workingData[!nreqVariables],workingData$Happy)
+
+```
+```{r}
+findCorrelation(workingData = workingData[!(names(workingData) %in% c('Happy','Happiness.in.life'))],workingData$Happiness.in.life)
+```
+```{r}
+kmeansCluster <- function(){
+ fviz_nbclust(trainData, kmeans, method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2)
+set.seed(123)
+km.res <- kmeans(clusterVar, 4, nstart = 25)
+km.res$centers
+fviz_cluster(km.res, data = clusterVar)
+predictedCluster <- as.vector(cl_predict(km.res,testMusic))
+testMusic$Predicted = predictedCluster
+testMusic$Predicted[testMusic$Predicted <=2] = 0
+testMusic$Predicted[testMusic$Predicted >2] = 1
+confusionMatrix(as.factor(testMusic$Happy),as.factor(testMusic$Predicted))
+#We have achieved an accuracy of 0.6275 in predicting the happiness quotient according to music preferences. 
+}
+```
+
