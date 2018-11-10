@@ -1,6 +1,8 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
@@ -13,7 +15,7 @@ library(dplyr)
 library(ggplot2)
 library(DescTools)
 library(cluster)
-setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
+setwd("D:/5th sem/Projects/DA/Git/youth-happiness-analysis")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 is.finite.data.frame <- function(obj){
     sapply(obj,FUN = function(x) all(is.finite(x)))
@@ -126,6 +128,7 @@ testData <- clusterVar[noOfRowsTrainData:nrow(clusterVar),]
 
 ```
 
+
 ```{r}
 library(clue)
 library(factoextra)
@@ -137,6 +140,7 @@ library(scales)
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
 rawData$Happy <- na.omit(df$Happy)
+
 nrowsTrain <- 0.9*nrow(rawData)
 
 nreqAttributes <- names(rawData) %in% c("Height","Weight","House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
@@ -150,6 +154,67 @@ actualData <- df[nrowsTrain:nrow(df),]
 testData <- rawData[nrowsTrain:nrow(rawData),]
 ```
 
+```{r}
+#Hierarchical clustering
+##For k=2
+library(dendextend)
+library(colorspace)
+distCalc <- dist(rawData)
+#Using the "complete" method for clustering as it gives better accuracy
+hclusters <- hclust(distCalc, method = "complete")
+happyLevels <- rev(levels(as.factor(rawData[,17])))
+
+#Forming the dendrogram
+dend <- as.dendrogram(hclusters)
+dend <- rotate(dend, 1:150)
+dend <- color_branches(dend, k=2)
+labels_colors(dend) <-
+  rainbow_hcl(2)[sort_levels_values(
+    as.numeric(rawData[,17])[order.dendrogram(dend)]
+  )]
+
+labels(dend) <- paste(as.character(rawData[,17])[order.dendrogram(dend)],"(",labels(dend),")", sep = "")
+dend <- hang.dendrogram(dend,hang_height=0.1)
+dend <- set(dend, "labels_cex", 0.5)
+
+#Plotting the dendrogram
+par(mfrow=c(1,1))
+plot(dend, 
+     main = "Clustered data set", 
+     horiz =  TRUE,  nodePar = list(cex = .007))
+legend("topleft", legend = happyLevels, fill = rainbow_hcl(2))
+
+hclusteringMethod <- c("complete")
+
+#hclusteringMethod <- c("ward.D", "single", "complete", "average", "mcquitty", "median", #"centroid", "ward.D2")
+hclustDendlist <- dendlist()
+for(i in seq_along(hclusteringMethod)) {
+  hCluster <- hclust(distCalc , method = hclusteringMethod[i])
+  hclustDendlist <- dendlist(hclustDendlist, as.dendrogram(hCluster))
+}
+names(hclustDendlist) <- hclust_methods
+hclustDendlist
+
+# par(mfrow = c(4,2))
+# for(i in 1:8) {
+#    hclustDendlist[[i]] %>% set("branches_k_color", k=2) %>% plot(axes = FALSE, horiz = TRUE)
+#    title(names(hclustDendlist)[i])
+# }
+
+getClusters <- function(dend) {
+  cutree(dend, k =2)[order.dendrogram(dend)]
+}
+dendClusters <- lapply(hclustDendlist, getClusters)
+dendClusters<-as.data.frame(dendClusters)
+colnames(dendClusters)[1]<-"predicted.clusters"
+
+#For the confusion Matrix
+referenceData<-rawData$Happy
+predictedData<-dendClusters$predicted.clusters
+unionData <- union(predictedData,referenceData)
+tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
+confusionMatrix(tableData)
+```
 ```{r}
 
 #K-Means clustering for the data
