@@ -2,27 +2,25 @@
 title: "R Notebook"
 output: html_notebook
 ---
-
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-
-```{r}
-plot(cars)
-```
-
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
 ```{r}
 library(corrplot)
 library(dplyr)
 library(ggplot2)
 library(DescTools)
+library(cluster)
 setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
+is.finite.data.frame <- function(obj){
+    sapply(obj,FUN = function(x) all(is.finite(x)))
+}
+df <- df[rowSums(is.na(df)) == 0, ]
+# df[rowSums(is.finite(df)) == 0, ]
+# df <- na.omit(df[relevantAttributes1$Attributes])
 ```
 
 ```{r}
@@ -61,10 +59,12 @@ for (factorV in happinessFactors){
 ```
 
 ```{r}
+modify <- function(x) 5-x
+
 modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
 pcaHappinessSadness <- prcomp(modifiedHappinessSadness)
 pcaHappinessSadness = as.data.frame(pcaHappinessSadness$x[,1])
-Happy <- vector(length = 1010)
+Happy <- vector(length = 986)
 modifiedHappinessSadness = cbind(modifiedHappinessSadness,pcaHappinessSadness,Happy)
 colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] = "FALSE"
@@ -91,42 +91,145 @@ corrVals <- data.frame(corrVals)
 corrVals$Attributes = as.vector(colnames(workingData))
 corrValsModified <- corrVals
 corrValsModified$Attributes <- factor(corrValsModified$Attributes, levels = corrValsModified$Attributes[order(-corrValsModified$corrVals)])
-ggplot(corrValsModified, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
 relevantTraits <- corrValsModified[(corrValsModified$corrVals >= 0.25 | corrValsModified$corrVals <= -0.25),]
-ggplot(relevantTraits, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
-
-# print(relevantTraits$Attributes)
+p <- ggplot(relevantTraits, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+print(p)
+print(relevantTraits$Attributes)
+return(relevantTraits)
 }
 
 ```
 
 ```{r}
-# Analysis of various personality traits wrt Happy Label.
+# Analysis of various traits wrt Happy Label.
+df$Happy[df$Happy == TRUE] = 1
+df$Happy[df$Happy == FALSE] = 0
+df$Happy = as.numeric(df$Happy)
 workingData <- df
 nreqVariables = names(workingData) %in% happinessFactors
 # workingData$Happy = df$Happy
-workingData$Happy[workingData$Happy == TRUE] = 1
-workingData$Happy[workingData$Happy == FALSE] = 0
-findCorrelation(workingData = workingData[!nreqVariables],workingData$Happy)
+
+relevantAttributes1 <- findCorrelation(workingData = workingData[!nreqVariables],workingData$Happy)
 
 ```
 ```{r}
-findCorrelation(workingData = workingData[!(names(workingData) %in% c('Happy','Happiness.in.life'))],workingData$Happiness.in.life)
+relevantAttributes2 <- findCorrelation(workingData = workingData[!(names(workingData) %in% c('Happy','Happiness.in.life'))],workingData$Happiness.in.life)
+```
+
+```{r}
+clusterVar <- workingData[relevantAttributes1$Attributes]
+clusterVar$Happy <-  as.numeric(workingData$Happy)
+clusterVar$Happiness.in.life <- as.numeric(workingData$Happiness.in.life)
+noOfRowsTrainData <- 0.9*nrow(clusterVar)
+trainData <- clusterVar[1:noOfRowsTrainData,]
+testData <- clusterVar[noOfRowsTrainData:nrow(clusterVar),]
+
+```
+
+```{r}
+library(clue)
+library(factoextra)
+library(caret)
+library(scales)
+```
+
+```{r}
+# Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
+rawData <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
+rawData$Happy <- na.omit(df$Happy)
+nrowsTrain <- 0.9*nrow(rawData)
+
+nreqAttributes <- names(rawData) %in% c("Height","Weight","House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
+rawData <- rawData[!nreqAttributes]
+# Scale Age weight and height.
+rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
+# rawData$Height <- rescale(rawData$Height, to = c(1, 5), from = range(rawData$Height))
+# rawData$Weight <- rescale(rawData$Weight, to = c(1, 5), from = range(rawData$Weight))
+trainData <- rawData[1:nrowsTrain,]
+actualData <- df[nrowsTrain:nrow(df),]
+testData <- rawData[nrowsTrain:nrow(rawData),]
+```
+
+```{r}
+
+#K-Means clustering for the data
+#Method 1
+fviz_nbclust(trainData, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)
+set.seed(123)
+km.res <- kmeans(trainData, 5, nstart = 25)
+km.res$centers
+fviz_cluster(km.res, data = trainData)
+```
+
+```{r}
+predictedCluster <- as.vector(cl_predict(km.res,testData))
+
+testData$Predicted = predictedCluster
+testData$Predicted[testData$Predicted == 2 | testData$Predicted == 1] = 0
+testData$Predicted[testData$Predicted == 3] = 1
+confusionMatrix(factor(actualData$Happy,levels = 0:1),factor(testData$Predicted,levels = 0:1))
+
+
 ```
 ```{r}
-kmeansCluster <- function(){
- fviz_nbclust(trainData, kmeans, method = "wss") +
-  geom_vline(xintercept = 3, linetype = 2)
-set.seed(123)
-km.res <- kmeans(clusterVar, 4, nstart = 25)
-km.res$centers
-fviz_cluster(km.res, data = clusterVar)
-predictedCluster <- as.vector(cl_predict(km.res,testMusic))
-testMusic$Predicted = predictedCluster
-testMusic$Predicted[testMusic$Predicted <=2] = 0
-testMusic$Predicted[testMusic$Predicted >2] = 1
-confusionMatrix(as.factor(testMusic$Happy),as.factor(testMusic$Predicted))
-#We have achieved an accuracy of 0.6275 in predicting the happiness quotient according to music preferences. 
-}
+rawData2 <- na.omit(df[as.vector(relevantAttributes2$Attributes)])
+rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
+nrowsTrain <- 0.9*nrow(rawData2)
+
+# nreqAttributes <- names(rawData2) %in% c("House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
+# rawData <- rawData[!nreqAttributes]
+# Scale Age weight and height.
+# rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
+# rawData$Height <- rescale(rawData$Height, to = c(1, 5), from = range(rawData$Height))
+# rawData$Weight <- rescale(rawData$Weight, to = c(1, 5), from = range(rawData$Weight))
+trainData2 <- rawData2[1:nrowsTrain,]
+actualData <- df[nrowsTrain:nrow(df),]
+testData2 <- rawData2[nrowsTrain:nrow(rawData),]
 ```
+
+```{r}
+fviz_nbclust(trainData2, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)
+set.seed(123)
+km.res <- kmeans(trainData2, 8, nstart = 25)
+km.res$centers
+fviz_cluster(km.res, data = trainData2)
+```
+
+```{r}
+predictedCluster <- as.vector(cl_predict(km.res,testData2))
+
+testData2$Predicted = predictedCluster
+testData2$Predicted[testData2$Predicted == 6] = 1
+testData2$Predicted[testData2$Predicted == 5] = 2
+testData2$Predicted[testData2$Predicted == 3 ] = 3
+# testData2$Predicted[ ] = 4
+testData2$Predicted[testData2$Predicted == 4 | testData2$Predicted == 1| testData2$Predicted == 7|testData2$Predicted == 2 ] = 5
+confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$Predicted,levels = 1:5))
+
+```
+
+```{r}
+# We obtain an accuracy of 74.51%
+# 
+# #Method 2
+# set.seed(123)
+# km_res2 <- eclust(rawData, "kmeans", k = 4,nstart = 25, graph = FALSE)
+# fviz_cluster(km_res2, data=trainData)
+#Note that, silhouette coefficient measures how well an observation is clustered and it estimates the average distance between clusters
+#(i.e, the average silhouette width).Observations with negative silhouette are probably placed in the wrong cluster.
+# fviz_silhouette(km_res2)
+# predictedCluster <- as.vector(cl_predict(km.res2,testData))
+# testData$Predicted = predictedCluster
+# testData$Predicted[testData$Predicted <=2] = 0
+# testData$Predicted[testData$Predicted >2] = 1
+# print(table(as.factor(actualData$Happy),as.factor(testData$Predicted)))
+# confusionMatrix(as.factor(actualData$Happy),as.factor(testData$Predicted))
+#We get accuracy of 67.65% using this method
+
+```
+
+
+
 
