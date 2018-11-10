@@ -206,14 +206,26 @@ getClusters <- function(dend) {
 }
 dendClusters <- lapply(hclustDendlist, getClusters)
 dendClusters<-as.data.frame(dendClusters)
+#View(dendClusters)
 colnames(dendClusters)[1]<-"predicted.clusters"
-
+modifiedDendClusters<-dendClusters
+for (i in 1:986)
+{
+  #If it is cluster 1,Happy value =0
+  if(modifiedDendClusters$predicted.clusters[i]==1)
+    modifiedDendClusters$predicted.clusters[i]<-0
+  else
+    #If it is cluster 2,Happy value =1
+    modifiedDendClusters$predicted.clusters[i]<-1
+}
 #For the confusion Matrix
 referenceData<-rawData$Happy
-predictedData<-dendClusters$predicted.clusters
+#View()
+predictedData<-modifiedDendClusters$predicted.clusters
 unionData <- union(predictedData,referenceData)
 tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
 confusionMatrix(tableData)
+
 ```
 ```{r}
 
