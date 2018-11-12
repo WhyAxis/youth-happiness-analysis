@@ -119,12 +119,12 @@ relevantAttributes2 <- findCorrelation(workingData = workingData[!(names(working
 ```
 
 ```{r}
-clusterVar <- workingData[relevantAttributes1$Attributes]
-clusterVar$Happy <-  as.numeric(workingData$Happy)
-clusterVar$Happiness.in.life <- as.numeric(workingData$Happiness.in.life)
-noOfRowsTrainData <- 0.9*nrow(clusterVar)
-trainData <- clusterVar[1:noOfRowsTrainData,]
-testData <- clusterVar[noOfRowsTrainData:nrow(clusterVar),]
+# clusterVar <- workingData[relevantAttributes1$Attributes]
+# clusterVar$Happy <-  as.numeric(workingData$Happy)
+# clusterVar$Happiness.in.life <- as.numeric(workingData$Happiness.in.life)
+# noOfRowsTrainData <- 0.9*nrow(clusterVar)
+# trainData <- clusterVar[1:noOfRowsTrainData,]
+# testData <- clusterVar[noOfRowsTrainData:nrow(clusterVar),]
 
 ```
 
@@ -140,18 +140,88 @@ library(scales)
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
 rawData$Happy <- na.omit(df$Happy)
-
-nrowsTrain <- 0.9*nrow(rawData)
-
 nreqAttributes <- names(rawData) %in% c("Height","Weight","House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
 rawData <- rawData[!nreqAttributes]
 # Scale Age weight and height.
 rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
 # rawData$Height <- rescale(rawData$Height, to = c(1, 5), from = range(rawData$Height))
 # rawData$Weight <- rescale(rawData$Weight, to = c(1, 5), from = range(rawData$Weight))
+nrowsTrain <- 0.9*nrow(rawData)
 trainData <- rawData[1:nrowsTrain,]
 actualData <- df[nrowsTrain:nrow(df),]
 testData <- rawData[nrowsTrain:nrow(rawData),]
+```
+
+
+```{r}
+
+#K-Means clustering for the data
+#Method 1
+fviz_nbclust(trainData, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)
+set.seed(123)
+km.res <- kmeans(trainData, 3, nstart = 25)
+km.res$centers
+fviz_cluster(km.res, data = trainData)
+```
+
+```{r}
+predictedCluster <- as.vector(cl_predict(km.res,testData))
+
+testData$Predicted = predictedCluster
+testData$Predicted[testData$Predicted == 4| testData$Predicted == 1| testData$Predicted == 2] = 0
+testData$Predicted[testData$Predicted == 5| testData$Predicted == 3] = 1
+confusionMatrix(factor(actualData$Happy,levels = 0:1),factor(testData$Predicted,levels = 0:1))
+```
+
+```{r}
+rawData2 <- na.omit(df[as.vector(relevantAttributes2$Attributes)])
+rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
+nrowsTrain <- 0.9*nrow(rawData2)
+trainData2 <- rawData2[1:nrowsTrain,]
+actualData <- df[nrowsTrain:nrow(df),]
+testData2 <- rawData2[nrowsTrain:nrow(rawData),]
+```
+
+```{r}
+fviz_nbclust(trainData2, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)
+set.seed(123)
+km.res <- kmeans(trainData2, 8, nstart = 25)
+km.res$centers
+fviz_cluster(km.res, data = trainData2)
+```
+
+```{r}
+predictedCluster <- as.vector(cl_predict(km.res,testData2))
+
+testData2$Predicted = predictedCluster
+testData2$Predicted[testData2$Predicted == 6] = 1
+testData2$Predicted[testData2$Predicted == 5] = 2
+testData2$Predicted[testData2$Predicted == 3 ] = 3
+testData2$Predicted[testData2$Predicted == 4 | testData2$Predicted == 1| testData2$Predicted == 7|testData2$Predicted == 2 ] = 5
+confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$Predicted,levels = 1:5))
+
+```
+
+```{r}
+# We obtain an accuracy of 74.51%
+# 
+# #Method 2
+# set.seed(123)
+# km_res2 <- eclust(rawData, "kmeans", k = 4,nstart = 25, graph = FALSE)
+# fviz_cluster(km_res2, data=trainData)
+#Note that, silhouette coefficient measures how well an observation is clustered and it estimates the average distance between clusters
+#(i.e, the average silhouette width).Observations with negative silhouette are probably placed in the wrong cluster.
+# fviz_silhouette(km_res2)
+# predictedCluster <- as.vector(cl_predict(km.res2,testData))
+# testData$Predicted = predictedCluster
+# testData$Predicted[testData$Predicted <=2] = 0
+# testData$Predicted[testData$Predicted >2] = 1
+# print(table(as.factor(actualData$Happy),as.factor(testData$Predicted)))
+# confusionMatrix(as.factor(actualData$Happy),as.factor(testData$Predicted))
+#We get accuracy of 67.65% using this method
+
 ```
 
 ```{r}
@@ -227,86 +297,5 @@ tableData <- table(factor(predictedData, unionData), factor(referenceData, union
 confusionMatrix(tableData)
 
 ```
-```{r}
-
-#K-Means clustering for the data
-#Method 1
-fviz_nbclust(trainData, kmeans, method = "wss") +
-  geom_vline(xintercept = 5, linetype = 2)
-set.seed(123)
-km.res <- kmeans(trainData, 5, nstart = 25)
-km.res$centers
-fviz_cluster(km.res, data = trainData)
-```
-
-```{r}
-predictedCluster <- as.vector(cl_predict(km.res,testData))
-
-testData$Predicted = predictedCluster
-testData$Predicted[testData$Predicted == 2 | testData$Predicted == 1] = 0
-testData$Predicted[testData$Predicted == 3] = 1
-confusionMatrix(factor(actualData$Happy,levels = 0:1),factor(testData$Predicted,levels = 0:1))
-
-
-```
-```{r}
-rawData2 <- na.omit(df[as.vector(relevantAttributes2$Attributes)])
-rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
-nrowsTrain <- 0.9*nrow(rawData2)
-
-# nreqAttributes <- names(rawData2) %in% c("House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
-# rawData <- rawData[!nreqAttributes]
-# Scale Age weight and height.
-# rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
-# rawData$Height <- rescale(rawData$Height, to = c(1, 5), from = range(rawData$Height))
-# rawData$Weight <- rescale(rawData$Weight, to = c(1, 5), from = range(rawData$Weight))
-trainData2 <- rawData2[1:nrowsTrain,]
-actualData <- df[nrowsTrain:nrow(df),]
-testData2 <- rawData2[nrowsTrain:nrow(rawData),]
-```
-
-```{r}
-fviz_nbclust(trainData2, kmeans, method = "wss") +
-  geom_vline(xintercept = 5, linetype = 2)
-set.seed(123)
-km.res <- kmeans(trainData2, 8, nstart = 25)
-km.res$centers
-fviz_cluster(km.res, data = trainData2)
-```
-
-```{r}
-predictedCluster <- as.vector(cl_predict(km.res,testData2))
-
-testData2$Predicted = predictedCluster
-testData2$Predicted[testData2$Predicted == 6] = 1
-testData2$Predicted[testData2$Predicted == 5] = 2
-testData2$Predicted[testData2$Predicted == 3 ] = 3
-# testData2$Predicted[ ] = 4
-testData2$Predicted[testData2$Predicted == 4 | testData2$Predicted == 1| testData2$Predicted == 7|testData2$Predicted == 2 ] = 5
-confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$Predicted,levels = 1:5))
-
-```
-
-```{r}
-# We obtain an accuracy of 74.51%
-# 
-# #Method 2
-# set.seed(123)
-# km_res2 <- eclust(rawData, "kmeans", k = 4,nstart = 25, graph = FALSE)
-# fviz_cluster(km_res2, data=trainData)
-#Note that, silhouette coefficient measures how well an observation is clustered and it estimates the average distance between clusters
-#(i.e, the average silhouette width).Observations with negative silhouette are probably placed in the wrong cluster.
-# fviz_silhouette(km_res2)
-# predictedCluster <- as.vector(cl_predict(km.res2,testData))
-# testData$Predicted = predictedCluster
-# testData$Predicted[testData$Predicted <=2] = 0
-# testData$Predicted[testData$Predicted >2] = 1
-# print(table(as.factor(actualData$Happy),as.factor(testData$Predicted)))
-# confusionMatrix(as.factor(actualData$Happy),as.factor(testData$Predicted))
-#We get accuracy of 67.65% using this method
-
-```
-
-
 
 
