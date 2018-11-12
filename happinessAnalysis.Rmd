@@ -119,17 +119,6 @@ relevantAttributes2 <- findCorrelation(workingData = workingData[!(names(working
 ```
 
 ```{r}
-# clusterVar <- workingData[relevantAttributes1$Attributes]
-# clusterVar$Happy <-  as.numeric(workingData$Happy)
-# clusterVar$Happiness.in.life <- as.numeric(workingData$Happiness.in.life)
-# noOfRowsTrainData <- 0.9*nrow(clusterVar)
-# trainData <- clusterVar[1:noOfRowsTrainData,]
-# testData <- clusterVar[noOfRowsTrainData:nrow(clusterVar),]
-
-```
-
-
-```{r}
 library(clue)
 library(factoextra)
 library(caret)
@@ -140,7 +129,7 @@ library(scales)
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
 rawData$Happy <- na.omit(df$Happy)
-nreqAttributes <- names(rawData) %in% c("Height","Weight","House...block.of.flats","Education","Left...right.handed","Village...town","Gender","Only.child","X",'Number.of.siblings')
+nreqAttributes <- names(rawData) %in% c("Height","Weight","Gender")
 rawData <- rawData[!nreqAttributes]
 # Scale Age weight and height.
 rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
@@ -167,10 +156,9 @@ fviz_cluster(km.res, data = trainData)
 
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData))
-
 testData$Predicted = predictedCluster
-testData$Predicted[testData$Predicted == 4| testData$Predicted == 1| testData$Predicted == 2] = 0
-testData$Predicted[testData$Predicted == 5| testData$Predicted == 3] = 1
+testData$Predicted[testData$Predicted == 1| testData$Predicted == 2] = 0
+testData$Predicted[testData$Predicted == 3] = 1
 confusionMatrix(factor(actualData$Happy,levels = 0:1),factor(testData$Predicted,levels = 0:1))
 ```
 
