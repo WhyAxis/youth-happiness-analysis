@@ -15,7 +15,7 @@ library(dplyr)
 library(ggplot2)
 library(DescTools)
 library(cluster)
-setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
+# setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 is.finite.data.frame <- function(obj){
     sapply(obj,FUN = function(x) all(is.finite(x)))
@@ -169,7 +169,7 @@ rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
 nrowsTrain <- 0.9*nrow(rawData2)
 trainData2 <- rawData2[1:nrowsTrain,]
 actualData <- df[nrowsTrain:nrow(df),]
-testData2 <- rawData2[nrowsTrain:nrow(rawData),]
+testData2 <- rawData2[nrowsTrain:nrow(rawData2),]
 ```
 
 ```{r}
@@ -287,4 +287,48 @@ confusionMatrix(tableData)
 
 ```
 
+```{r}
+#Decision Tree 
+
+library(rpart)
+library(rpart.plot)
+
+fit <- rpart(Happy~Health+Changing.the.past+Public.speaking+Interests.or.hobbies+Storm+Darkness+Spiders+Fear.of.public.speaking+Cars+Active.sport+Adrenaline.sports+Romantic+Western+Action+bmi, data = trainData1, method = 'class')
+rpart.plot(fit, extra = 101)
+
+predictedVal <-predict(fit, testData1, type = 'class')
+
+tableMat <- table(testData1$Happy, predictedVal)
+confusionMatrix(tableMat)
+
+
+```
+
+
+```{r}
+
+#Pam Clustering
+
+library(cluster)
+
+set.seed(123)
+pam.res <- pam(trainData1, 5)
+pam.res$medoids
+
+fviz_cluster(pam.res, data = trainData1)
+predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
+
+testData1$PredictedPam = predictedClusterPam
+testData1$PredictedPam[testData1$PredictedPam == 1 |testData1$PredictedPam == 4 | testData1$PredictedPam == 5] = 0
+testData1$PredictedPam[testData1$PredictedPam == 2| testData1$PredictedPam == 3] = 1
+confusionMatrixPam = confusionMatrix(factor(testData1$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1))
+confusionMatrixPam
+
+#Considering Positive Class as '1'
+recallPam = confusionMatrixPam$table[4] / (confusionMatrixPam$table[4]+confusionMatrixPam$table[2])
+precisionPam = confusionMatrixPam$table[4] /(confusionMatrixPam$table[4]+confusionMatrixPam$table[3])
+fScorePam = (2*recallPam*precisionPam)/(recallPam+precisionPam)
+fScorePam
+
+```
 
