@@ -15,7 +15,7 @@ library(dplyr)
 library(ggplot2)
 library(DescTools)
 library(cluster)
-setwd("D:/5th sem/Projects/DA/Git/youth-happiness-analysis")
+setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 is.finite.data.frame <- function(obj){
     sapply(obj,FUN = function(x) all(is.finite(x)))
@@ -42,6 +42,9 @@ df$bmi[df$bmi > 18.5 & df$bmi <= 20] = 2
 df$bmi[df$bmi > 20 & df$bmi <= 25] = 3
 df$bmi[df$bmi > 25 & df$bmi <= 30] = 4
 df$bmi[df$bmi > 30] = 5
+
+nreqAttributes <- names(df) %in% c("Height","Weight")
+df <- df[!nreqAttributes]
 ```
 
 ```{r}
@@ -127,18 +130,16 @@ library(scales)
 
 ```{r}
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
-rawData <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
-rawData$Happy <- na.omit(df$Happy)
-nreqAttributes <- names(rawData) %in% c("Height","Weight","Gender")
-rawData <- rawData[!nreqAttributes]
+rawData1 <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
+rawData1$Happy <- na.omit(df$Happy)
+nreqAttributes <- names(rawData1) %in% c("Height","Weight","Gender")
+rawData1 <- rawData1[!nreqAttributes]
 # Scale Age weight and height.
-rawData$Age <- rescale(rawData$Age, to = c(1, 5), from = range(rawData$Age))
-# rawData$Height <- rescale(rawData$Height, to = c(1, 5), from = range(rawData$Height))
-# rawData$Weight <- rescale(rawData$Weight, to = c(1, 5), from = range(rawData$Weight))
-nrowsTrain <- 0.9*nrow(rawData)
-trainData <- rawData[1:nrowsTrain,]
-actualData <- df[nrowsTrain:nrow(df),]
-testData <- rawData[nrowsTrain:nrow(rawData),]
+rawData1$Age <- rescale(rawData1$Age, to = c(1, 5), from = range(rawData1$Age))
+nrowsTrain <- 0.8*nrow(rawData1)
+trainData1 <- rawData1[1:nrowsTrain,]
+actualData1 <- df[nrowsTrain:nrow(df),]
+testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
 ```
 
 
@@ -146,20 +147,20 @@ testData <- rawData[nrowsTrain:nrow(rawData),]
 
 #K-Means clustering for the data
 #Method 1
-fviz_nbclust(trainData, kmeans, method = "wss") +
+fviz_nbclust(trainData1, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData, 3, nstart = 25)
+km.res <- kmeans(trainData1, 3, nstart = 25)
 km.res$centers
-fviz_cluster(km.res, data = trainData)
+fviz_cluster(km.res, data = trainData1)
 ```
 
 ```{r}
-predictedCluster <- as.vector(cl_predict(km.res,testData))
-testData$Predicted = predictedCluster
-testData$Predicted[testData$Predicted == 1| testData$Predicted == 2] = 0
-testData$Predicted[testData$Predicted == 3] = 1
-confusionMatrix(factor(actualData$Happy,levels = 0:1),factor(testData$Predicted,levels = 0:1))
+predictedCluster <- as.vector(cl_predict(km.res,testData1))
+testData1$Predicted = predictedCluster
+testData1$Predicted[testData1$Predicted == 1| testData1$Predicted == 2] = 0
+testData1$Predicted[testData1$Predicted == 3] = 1
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(testData1$Predicted,levels = 0:1))
 ```
 
 ```{r}
