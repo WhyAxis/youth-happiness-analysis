@@ -349,12 +349,14 @@ fScorePam
 
 ```{r}
 library(e1071)
-# library(fclust)
-cmeansCluster <- cmeans(trainData1,centers = 8 ,iter.max = 100, verbose = FALSE,
-dist = "manhattan", method = "cmeans", m = 2,
-rate.par = NULL, weights = 1, control = list())
-
+cmeansCluster <- cmeans(trainData1,centers = 3 ,iter.max = 100, verbose = FALSE,dist = "manhattan", method = "cmeans", m = 2,rate.par = NULL, weights = 1, control = list())
 cmeansCluster$centers
 clusplot(trainData1,cmeansCluster$cluster)
 ```
 
+```{r}
+resultsDF$PredictedCmeans <- cl_predict(cmeansCluster,testData1,type = "class_ids")
+resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 3] = 0
+resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 1| resultsDF$PredictedCmeans == 2] = 1
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedCmeans,levels = 0:1))
+```
