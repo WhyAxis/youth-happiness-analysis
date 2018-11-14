@@ -338,55 +338,22 @@ fScorePam
 ```
 
 ```{r}
-# set.seed(5)
-# kMedian = kcca(kMedianData, k=4, family=kccaFamily("kmedians"), save.data=TRUE)
-# centroids = parameters(kMedian)
-
-#pred_cluster<- predict(kMedian, k=4, kccaFamily("kmedians"))
-# 
-# copy_test<-test_data
-# copy_test<-cbind(copy_test,pred_cluster)
-# 
-# 
-# pred_time<-c()  #To store the centroid values for each data point belonging to a cluster
-# 
-# #To append centroid values based on the cluster predict for the data point 
-# for (i in copy_test$pred_cluster)
-# {
-#     pred_time<-c(pred_time,centroids[i,])
-# }
-# copy_test<-cbind(copy_test,pred_time)
-# 
-# n_test<-nrow(test_data)
-# diff<-c() #To store difference between actual and predicted values
-# for (i in 0:n_test)
-# {
-#   #To calculate difference between actual value and predicted value when k=6
-#   calc_diff<-abs(copy_test$`Absenteeism time in hours`[i]- copy_test$pred_time[i])
-#   diff<-c(diff,calc_diff)
-# }
-# copy_test<-cbind(copy_test,diff) #Append difference values to the file
-# View(copy_test)
-```
-
-
-
-
-```{r}
 library(flexclust)
 #K Median Clustering
 set.seed(12)
 #To iterate and train the model 15 times
-#COnsidering k=4
-for(i in 1:15)
-{
-  kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
-}
+#Considering k=4
+# for(i in 1:15)
+# {
+#   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
+# }
 
 #kMedian
-medians = parameters(kMedian)
-#TO print the median value of each cluster
-medians
+kMedianValues = parameters(kMedian)
+#To print the median value of each cluster
+kMedianValues
+kMedianTrainClusters<-clusters(kMedian)
+clusplot(trainData1,kMedianTrainClusters,main = paste("CLUSPLOT For K Medians(k=4)"))
 
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
 #predClusterMedian
