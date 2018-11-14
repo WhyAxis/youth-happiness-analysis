@@ -77,8 +77,9 @@ modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] =
 df$Happy <- modifiedHappinessSadness$Happy
 happinessCount <- table(df$Happy,df$Gender)
 barplot(happinessCount, main = paste("Happy vs Gender"), col = c("red","blue"))
-legend("topright",legend = rownames(happinessCount),fill = c("red","blue") ,ncol = 1,cex = 0.6)
+legend("topright",legend = rownames(happinessCount),fill = c("red","blue") ,ncol = 1,cex = 0.4)
 ```
+
 ```{r}
 
 findCorrelation <- function(workingData,predictorVariable){
@@ -126,13 +127,14 @@ library(clue)
 library(factoextra)
 library(caret)
 library(scales)
+
 ```
 
 ```{r}
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData1 <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
 rawData1$Happy <- na.omit(df$Happy)
-nreqAttributes <- names(rawData1) %in% c("Height","Weight","Gender")
+nreqAttributes <- names(rawData1) %in% c("bmi","Gender")
 rawData1 <- rawData1[!nreqAttributes]
 # Scale Age weight and height.
 rawData1$Age <- rescale(rawData1$Age, to = c(1, 5), from = range(rawData1$Age))
@@ -140,6 +142,7 @@ nrowsTrain <- 0.8*nrow(rawData1)
 trainData1 <- rawData1[1:nrowsTrain,]
 actualData1 <- df[nrowsTrain:nrow(df),]
 testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
+resultsDF <- testData1$Happy
 ```
 
 
@@ -150,17 +153,17 @@ testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
 fviz_nbclust(trainData1, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData1, 3, nstart = 25)
+km.res <- kmeans(trainData1, 3, nstart = 25,iter.max = 10)
 km.res$centers
 fviz_cluster(km.res, data = trainData1)
 ```
 
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData1))
-testData1$Predicted = predictedCluster
-testData1$Predicted[testData1$Predicted == 1| testData1$Predicted == 2] = 0
-testData1$Predicted[testData1$Predicted == 3] = 1
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(testData1$Predicted,levels = 0:1))
+resultsDF$PredictedKmean = predictedCluster
+resultsDF$PredictedKmean[resultsDF$PredictedKmean == 3| resultsDF$PredictedKmean == 2] = 0
+resultsDF$PredictedKmean[resultsDF$PredictedKmean == 1] = 1
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedKmean,levels = 0:1))
 ```
 
 ```{r}
@@ -176,19 +179,32 @@ testData2 <- rawData2[nrowsTrain:nrow(rawData2),]
 fviz_nbclust(trainData2, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData2, 8, nstart = 25)
-km.res$centers
+km.res <- kmeans(trainData2, 4, nstart = 25)
+tempCenters <- as.data.frame(km.res$centers)
+print(tempCenters)
 fviz_cluster(km.res, data = trainData2)
 ```
 
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData2))
-testData2$Predicted = predictedCluster
-testData2$Predicted[testData2$Predicted == 6] = 1
-testData2$Predicted[testData2$Predicted == 5] = 2
-testData2$Predicted[testData2$Predicted == 3 ] = 3
-testData2$Predicted[testData2$Predicted == 4 | testData2$Predicted == 1| testData2$Predicted == 7|testData2$Predicted == 2 ] = 5
-confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$Predicted,levels = 1:5))
+testData2$PredictedKmean2 = predictedCluster
+
+# testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
+# testData2$PredictedKmean[testData2$PredictedKmean == 3 ] = 3
+# testData2$PredictedKmean[testData2$PredictedKmean == 4 | testData2$PredictedKmean == 1| testData2$PredictedKmean == 7|testData2$PredictedKmean == 2 ] = 5
+# confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5))
+
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 1] = tempCenters$Happiness.in.life[1]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 2] = tempCenters$Happiness.in.life[2]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 3] = tempCenters$Happiness.in.life[3]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 4] = tempCenters$Happiness.in.life[4]
+plot(testData2$PredictedKmean2,testData2$Happiness.in.life)
+# plot(density(resid(testData2$Happiness.in.life~testData2$PredictedKmean2)))
+model1 <- lm(testData2$Happiness.in.life~testData2$PredictedKmean2)
+plot(density(resid(model1)))
+# qqnorm(resid(model1))
+# qqline(resid(model1))
+# resid(testData2$Happiness.in.life~testData2$PredictedKmean2)
 
 ```
 
@@ -220,7 +236,7 @@ library(colorspace)
 distCalc <- dist(rawData1)
 #Using the "complete" method for clustering as it gives better accuracy
 hclusters <- hclust(distCalc, method = "complete")
-happyLevels <- rev(levels(as.factor(rawData1[,17])))
+happyLevels <- rev(levels(as.factor(rawData1$Happy)))
 
 #Forming the dendrogram
 dend <- as.dendrogram(hclusters)
@@ -228,10 +244,10 @@ dend <- rotate(dend, 1:150)
 dend <- color_branches(dend, k=2)
 labels_colors(dend) <-
   rainbow_hcl(2)[sort_levels_values(
-    as.numeric(rawData1[,17])[order.dendrogram(dend)]
+    as.numeric(rawData1$Happy)[order.dendrogram(dend)]
   )]
 
-labels(dend) <- paste(as.character(rawData1[,17])[order.dendrogram(dend)],"(",labels(dend),")", sep = "")
+labels(dend) <- paste(as.character(rawData1$Happy)[order.dendrogram(dend)],"(",labels(dend),")", sep = "")
 dend <- hang.dendrogram(dend,hang_height=0.1)
 dend <- set(dend, "labels_cex", 0.5)
 
@@ -281,7 +297,7 @@ confusionMatrix(tableData)
 library(rpart)
 library(rpart.plot)
 
-fit <- rpart(Happy~Health+Changing.the.past+Public.speaking+Interests.or.hobbies+Storm+Darkness+Spiders+Fear.of.public.speaking+Cars+Active.sport+Adrenaline.sports+Romantic+Western+Action+bmi, data = trainData1, method = 'class')
+fit <- rpart(Happy~Health+Changing.the.past+Public.speaking+Interests.or.hobbies+Storm+Darkness+Spiders+Fear.of.public.speaking+Cars+Active.sport+Adrenaline.sports+Romantic+Western+Action, data = trainData1, method = 'class')
 rpart.plot(fit, extra = 101)
 
 predictedVal <-predict(fit, testData1, type = 'class')
@@ -300,17 +316,18 @@ confusionMatrix(tableMat)
 library(cluster)
 
 set.seed(123)
-pam.res <- pam(trainData1, 5)
+pam.res <- pam(trainData1, 6)
 pam.res$medoids
-
 fviz_cluster(pam.res, data = trainData1)
-predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
+```
 
-testData1$PredictedPam = predictedClusterPam
-testData1$PredictedPam[testData1$PredictedPam == 1 |testData1$PredictedPam == 4 | testData1$PredictedPam == 5] = 0
-testData1$PredictedPam[testData1$PredictedPam == 2| testData1$PredictedPam == 3] = 1
-confusionMatrixPam = confusionMatrix(factor(testData1$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1))
-confusionMatrixPam
+```{r}
+predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
+resultsDF$PredictedPam = predictedClusterPam
+resultsDF$PredictedPam[resultsDF$PredictedPam == 3 |resultsDF$PredictedPam == 5 | resultsDF$PredictedPam == 6] = 0
+resultsDF$PredictedPam[resultsDF$PredictedPam == 1| resultsDF$PredictedPam == 2 | resultsDF$PredictedPam == 4] = 1
+confusionMatrixPam = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1))
+print(confusionMatrixPam)
 
 #Considering Positive Class as '1'
 recallPam = confusionMatrixPam$table[4] / (confusionMatrixPam$table[4]+confusionMatrixPam$table[2])
@@ -319,10 +336,6 @@ fScorePam = (2*recallPam*precisionPam)/(recallPam+precisionPam)
 fScorePam
 
 ```
-
-
-
-
 
 ```{r}
 # set.seed(5)
@@ -360,28 +373,42 @@ fScorePam
 
 
 ```{r}
-copyTestData1<-testData1
+library(flexclust)
+#K Median Clustering
 set.seed(12)
-for(i in 1:10)
+#To iterate and train the model 10 times
+for(i in 1:15)
 {
   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
 }
 
 #kMedian
-medians = parameters(km)
-#medians
+medians = parameters(kMedian)
+medians
 
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
+#predClusterMedian
 ```
 
 
 ```{r}
-#predictedCluster <- as.vector(cl_predict(km.res,testData1))
-copyTestData1$Predicted = predClusterMedian
-copyTestData1$Predicted[copyTestData1$Predicted == 2| copyTestData1$Predicted == 4] = 0
-copyTestData1$Predicted[testData1$Predicted == 1| copyTestData1$Predicted == 3] = 1
+resultsDF$predictedKMedian = predClusterMedian
+resultsDF$predictedKMedian[resultsDF$predictedKMedian == 2| resultsDF$predictedKMedian  == 4] = 0
+resultsDF$predictedKMedian[resultsDF$predictedKMedian == 1| resultsDF$predictedKMedian  == 3] = 1
 
-confusionMatrix(factor(copyTestData1$Happy,levels = 0:1),factor(copyTestData1$Predicted,levels = 0:1))
+confusionMatrix(factor(testData1$Happy,levels = 0:1),factor(resultsDF$predictedKMedian ,levels = 0:1))
+```
+
+
+```{r}
+library(e1071)
+# library(fclust)
+cmeansCluster <- cmeans(trainData1,centers = 8 ,iter.max = 100, verbose = FALSE,
+dist = "manhattan", method = "cmeans", m = 2,
+rate.par = NULL, weights = 1, control = list())
+
+cmeansCluster$centers
+clusplot(trainData1,cmeansCluster$cluster)
 ```
 
 
