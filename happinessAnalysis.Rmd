@@ -343,10 +343,10 @@ library(flexclust)
 set.seed(12)
 #To iterate and train the model 15 times
 #Considering k=4
-# for(i in 1:15)
-# {
-#   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
-# }
+for(i in 1:15)
+{
+  kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
+}
 
 #kMedian
 kMedianValues = parameters(kMedian)
