@@ -376,7 +376,8 @@ fScorePam
 library(flexclust)
 #K Median Clustering
 set.seed(12)
-#To iterate and train the model 10 times
+#To iterate and train the model 15 times
+#COnsidering k=4
 for(i in 1:15)
 {
   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
@@ -384,6 +385,7 @@ for(i in 1:15)
 
 #kMedian
 medians = parameters(kMedian)
+#TO print the median value of each cluster
 medians
 
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
