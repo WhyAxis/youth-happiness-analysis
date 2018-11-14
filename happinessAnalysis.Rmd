@@ -229,7 +229,7 @@ plot(density(resid(model1)))
 ```
 
 ```{r}
-#Hierarchical clustering
+#Hierarchical clustering for all the relevant attributes
 ##For k=2
 library(dendextend)
 library(colorspace)
@@ -254,7 +254,7 @@ dend <- set(dend, "labels_cex", 0.5)
 #Plotting the dendrogram
 par(mfrow=c(1,1))
 plot(dend, 
-     main = "Clustered data set", 
+     main = "Hierarchical clustering of relevant attributes", 
      horiz =  TRUE,  nodePar = list(cex = .007))
 legend("topleft", legend = happyLevels, fill = rainbow_hcl(2))
 
@@ -288,8 +288,75 @@ predictedData<-modifiedDendClusters$predicted.clusters
 unionData <- union(predictedData,referenceData)
 tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
 confusionMatrix(tableData)
-
+#We get an accuracy of 52.13%
 ```
+
+```{r}
+#Hierarchical clustering for testData1
+library(dendextend)
+library(colorspace)
+distCalcTest <- dist(testData1)
+#Using the "ward.D" method for clustering as it gives better accuracy
+hclustersTest <- hclust(distCalcTest, method = "ward.D")
+happyLevelsTest <- rev(levels(as.factor(testData1$Happy)))
+
+#Forming the dendrogram
+dendTest <- as.dendrogram(hclustersTest)
+dendTest <- rotate(dendTest, 1:150)
+dendTest <- color_branches(dendTest, k=2)
+labels_colors(dendTest) <-
+  rainbow_hcl(2)[sort_levels_values(
+    as.numeric(testData1$Happy)[order.dendrogram(dendTest)]
+  )]
+
+labels(dend) <- paste(as.character(testData1$Happy)[order.dendrogram(dendTest)],"(",labels(dendTest),")", sep = "")
+dendTest <- hang.dendrogram(dendTest,hang_height=0.1)
+dendTest <- set(dendTest, "labels_cex", 0.5)
+
+#Plotting the dendrogram
+par(mfrow=c(1,1))
+plot(dendTest, 
+     main = "Hierarchical Clustering on Test Data", 
+     horiz =  TRUE,  nodePar = list(cex = .007))
+legend("topleft", legend = happyLevelsTest, fill = rainbow_hcl(2))
+
+hclusteringMethod <- c("ward.D")
+hclustDendlistTest <- dendlist()
+for(i in seq_along(hclusteringMethod)) {
+  hClusterTest <- hclust(distCalcTest , method = hclusteringMethod[i])
+  hclustDendlistTest <- dendlist(hclustDendlistTest, as.dendrogram(hClusterTest))
+}
+#hclustDendlistTest
+
+getClustersTest <- function(dendTest) {
+  cutree(dendTest, k =2)[order.dendrogram(dendTest)]
+}
+dendClustersTest <- lapply(hclustDendlistTest, getClustersTest)
+dendClustersTest<-as.data.frame(dendClustersTest)
+colnames(dendClustersTest)[1]<-"predictedHierarchical"
+modifiedDendClustersTest<-dendClustersTest
+for (i in 1:nrow(modifiedDendClustersTest))
+{
+  #If it is cluster 1,Happy value =0
+  if(modifiedDendClustersTest$predictedHierarchical[i]==1)
+    modifiedDendClustersTest$predictedHierarchical[i]<-0
+  else
+    #If it is cluster 2,Happy value =1
+    modifiedDendClustersTest$predictedHierarchical[i]<-1
+}
+
+#Check
+resultsDF$predictedHierarchical<-modifiedDendClustersTest
+
+#For the confusion Matrix
+referenceDataTest<-testData1$Happy
+predictedDataHierarchicalTest<-modifiedDendClustersTest$predictedHierarchical
+unionDataHierarchicalTest <- union(predictedDataHierarchicalTest,referenceDataTest)
+tableDataHierarchicalTest <- table(factor(predictedDataHierarchicalTest, unionDataHierarchicalTest), factor(referenceDataTest, unionDataHierarchicalTest))
+confusionMatrix(tableDataHierarchicalTest)
+#We get an accuracy of 63.13%
+```
+
 
 ```{r}
 #Decision Tree 
