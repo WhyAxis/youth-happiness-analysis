@@ -1,8 +1,8 @@
 ---
 title: "R Notebook"
 output:
-  html_notebook: default
   html_document: default
+  html_notebook: default
 ---
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
@@ -142,8 +142,7 @@ nrowsTrain <- 0.8*nrow(rawData1)
 trainData1 <- rawData1[1:nrowsTrain,]
 actualData1 <- df[nrowsTrain:nrow(df),]
 testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
-# resultsDF <- data.frame(matrix(NA,nrow = nrow(testData1)))
-resultsDF <- data.frame(testData1$Happy)
+resultsDF <- testData1$Happy
 ```
 
 
@@ -180,7 +179,7 @@ testData2 <- rawData2[nrowsTrain:nrow(rawData2),]
 fviz_nbclust(trainData2, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData2, 7, nstart = 25)
+km.res <- kmeans(trainData2, 4, nstart = 25)
 tempCenters <- as.data.frame(km.res$centers)
 print(tempCenters)
 fviz_cluster(km.res, data = trainData2)
@@ -189,11 +188,23 @@ fviz_cluster(km.res, data = trainData2)
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData2))
 testData2$PredictedKmean2 = predictedCluster
-testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
-testData2$PredictedKmean[testData2$PredictedKmean == 3 ] = 3
-testData2$PredictedKmean[testData2$PredictedKmean == 4 | testData2$PredictedKmean == 1| testData2$PredictedKmean == 7|testData2$PredictedKmean == 2 ] = 5
-confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5))
 
+# testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
+# testData2$PredictedKmean[testData2$PredictedKmean == 3 ] = 3
+# testData2$PredictedKmean[testData2$PredictedKmean == 4 | testData2$PredictedKmean == 1| testData2$PredictedKmean == 7|testData2$PredictedKmean == 2 ] = 5
+# confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5))
+
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 1] = tempCenters$Happiness.in.life[1]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 2] = tempCenters$Happiness.in.life[2]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 3] = tempCenters$Happiness.in.life[3]
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 4] = tempCenters$Happiness.in.life[4]
+plot(testData2$PredictedKmean2,testData2$Happiness.in.life)
+# plot(density(resid(testData2$Happiness.in.life~testData2$PredictedKmean2)))
+model1 <- lm(testData2$Happiness.in.life~testData2$PredictedKmean2)
+plot(density(resid(model1)))
+# qqnorm(resid(model1))
+# qqline(resid(model1))
+# resid(testData2$Happiness.in.life~testData2$PredictedKmean2)
 
 ```
 
@@ -218,7 +229,7 @@ confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testDat
 ```
 
 ```{r}
-#Hierarchical clustering for all the relevant attributes
+#Hierarchical clustering
 ##For k=2
 library(dendextend)
 library(colorspace)
@@ -243,7 +254,7 @@ dend <- set(dend, "labels_cex", 0.5)
 #Plotting the dendrogram
 par(mfrow=c(1,1))
 plot(dend, 
-     main = "Hierarchical clustering of relevant attributes", 
+     main = "Clustered data set", 
      horiz =  TRUE,  nodePar = list(cex = .007))
 legend("topleft", legend = happyLevels, fill = rainbow_hcl(2))
 
@@ -277,78 +288,11 @@ predictedData<-modifiedDendClusters$predicted.clusters
 unionData <- union(predictedData,referenceData)
 tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
 confusionMatrix(tableData)
-#We get an accuracy of 52.13%
+
 ```
 
 ```{r}
-#Hierarchical clustering for testData1
-library(dendextend)
-library(colorspace)
-distCalcTest <- dist(testData1)
-#Using the "ward.D" method for clustering as it gives better accuracy
-hclustersTest <- hclust(distCalcTest, method = "ward.D")
-happyLevelsTest <- rev(levels(as.factor(testData1$Happy)))
-
-#Forming the dendrogram
-dendTest <- as.dendrogram(hclustersTest)
-dendTest <- rotate(dendTest, 1:150)
-dendTest <- color_branches(dendTest, k=2)
-labels_colors(dendTest) <-
-  rainbow_hcl(2)[sort_levels_values(
-    as.numeric(testData1$Happy)[order.dendrogram(dendTest)]
-  )]
-
-labels(dend) <- paste(as.character(testData1$Happy)[order.dendrogram(dendTest)],"(",labels(dendTest),")", sep = "")
-dendTest <- hang.dendrogram(dendTest,hang_height=0.1)
-dendTest <- set(dendTest, "labels_cex", 0.5)
-
-#Plotting the dendrogram
-par(mfrow=c(1,1))
-plot(dendTest, 
-     main = "Hierarchical Clustering on Test Data", 
-     horiz =  TRUE,  nodePar = list(cex = .007))
-legend("topleft", legend = happyLevelsTest, fill = rainbow_hcl(2))
-
-hclusteringMethod <- c("ward.D")
-hclustDendlistTest <- dendlist()
-for(i in seq_along(hclusteringMethod)) {
-  hClusterTest <- hclust(distCalcTest , method = hclusteringMethod[i])
-  hclustDendlistTest <- dendlist(hclustDendlistTest, as.dendrogram(hClusterTest))
-}
-#hclustDendlistTest
-
-getClustersTest <- function(dendTest) {
-  cutree(dendTest, k =2)[order.dendrogram(dendTest)]
-}
-dendClustersTest <- lapply(hclustDendlistTest, getClustersTest)
-dendClustersTest<-as.data.frame(dendClustersTest)
-colnames(dendClustersTest)[1]<-"predictedHierarchical"
-modifiedDendClustersTest<-dendClustersTest
-for (i in 1:nrow(modifiedDendClustersTest))
-{
-  #If it is cluster 1,Happy value =0
-  if(modifiedDendClustersTest$predictedHierarchical[i]==1)
-    modifiedDendClustersTest$predictedHierarchical[i]<-0
-  else
-    #If it is cluster 2,Happy value =1
-    modifiedDendClustersTest$predictedHierarchical[i]<-1
-}
-
-#Check
-resultsDF$predictedHierarchical<-modifiedDendClustersTest
-
-#For the confusion Matrix
-referenceDataTest<-testData1$Happy
-predictedDataHierarchicalTest<-modifiedDendClustersTest$predictedHierarchical
-unionDataHierarchicalTest <- union(predictedDataHierarchicalTest,referenceDataTest)
-tableDataHierarchicalTest <- table(factor(predictedDataHierarchicalTest, unionDataHierarchicalTest), factor(referenceDataTest, unionDataHierarchicalTest))
-confusionMatrix(tableDataHierarchicalTest)
-#We get an accuracy of 63.13%
-```
-
-
-```{r}
-#Decision Tree 
+#Decision Tree using CART
 
 library(rpart)
 library(rpart.plot)
@@ -363,6 +307,30 @@ confusionMatrix(tableMat)
 
 
 ```
+```{r}
+#Decision Tree using C5.0
+library(C50)
+set.seed(123)
+model <- C5.0(factor(Happy)~Health+Changing.the.past+Interests.or.hobbies+Fear.of.public.speaking+Romantic,data=trainData1)
+plot(model)
+resultsDF$predictedDTC5 = predict(model,testData1)
+confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy))
+
+```
+
+```{r}
+#Decision tree using Random Forest
+
+library(randomForest)
+set.seed(1)
+rf = randomForest(factor(Happy)~.,data = trainData1,ntree=750)
+plot(rf)
+varImpPlot(rf)
+resultsDF$predictedRf = predict(rf,testData1)
+confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy))
+
+```
+
 
 
 ```{r}
@@ -389,27 +357,63 @@ print(confusionMatrixPam)
 recallPam = confusionMatrixPam$table[4] / (confusionMatrixPam$table[4]+confusionMatrixPam$table[2])
 precisionPam = confusionMatrixPam$table[4] /(confusionMatrixPam$table[4]+confusionMatrixPam$table[3])
 fScorePam = (2*recallPam*precisionPam)/(recallPam+precisionPam)
-print("Fscore:")
-print(fScorePam)
+fScorePam
 
 ```
 
 ```{r}
+# set.seed(5)
+# kMedian = kcca(kMedianData, k=4, family=kccaFamily("kmedians"), save.data=TRUE)
+# centroids = parameters(kMedian)
+
+#pred_cluster<- predict(kMedian, k=4, kccaFamily("kmedians"))
+# 
+# copy_test<-test_data
+# copy_test<-cbind(copy_test,pred_cluster)
+# 
+# 
+# pred_time<-c()  #To store the centroid values for each data point belonging to a cluster
+# 
+# #To append centroid values based on the cluster predict for the data point 
+# for (i in copy_test$pred_cluster)
+# {
+#     pred_time<-c(pred_time,centroids[i,])
+# }
+# copy_test<-cbind(copy_test,pred_time)
+# 
+# n_test<-nrow(test_data)
+# diff<-c() #To store difference between actual and predicted values
+# for (i in 0:n_test)
+# {
+#   #To calculate difference between actual value and predicted value when k=6
+#   calc_diff<-abs(copy_test$`Absenteeism time in hours`[i]- copy_test$pred_time[i])
+#   diff<-c(diff,calc_diff)
+# }
+# copy_test<-cbind(copy_test,diff) #Append difference values to the file
+# View(copy_test)
+```
+
+
+
+
+```{r}
 library(flexclust)
-# K Median Clustering
+#K Median Clustering
 set.seed(12)
 #To iterate and train the model 15 times
-#Considering k=4
+#COnsidering k=4
 for(i in 1:15)
 {
   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
 }
-kMedianValues = parameters(kMedian)
-#To print the median value of each cluster
-kMedianValues
-kMedianTrainClusters<-clusters(kMedian)
-clusplot(trainData1,kMedianTrainClusters,main = paste("CLUSPLOT For K Medians(k=4)"))
+
+#kMedian
+medians = parameters(kMedian)
+#TO print the median value of each cluster
+medians
+
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
+#predClusterMedian
 ```
 
 
@@ -417,83 +421,20 @@ predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedian
 resultsDF$predictedKMedian = predClusterMedian
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 2| resultsDF$predictedKMedian  == 4] = 0
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 1| resultsDF$predictedKMedian  == 3] = 1
+
 confusionMatrix(factor(testData1$Happy,levels = 0:1),factor(resultsDF$predictedKMedian ,levels = 0:1))
 ```
 
 
 ```{r}
-# set.seed(1)
 library(e1071)
-cmeansCluster <- cmeans(trainData1,centers = 3 ,iter.max = 100, verbose = FALSE,dist = "manhattan", method = "cmeans", m = 2,rate.par = NULL, weights = 1, control = list())
+# library(fclust)
+cmeansCluster <- cmeans(trainData1,centers = 8 ,iter.max = 100, verbose = FALSE,
+dist = "manhattan", method = "cmeans", m = 2,
+rate.par = NULL, weights = 1, control = list())
+
 cmeansCluster$centers
 clusplot(trainData1,cmeansCluster$cluster)
 ```
 
-```{r}
-resultsDF$PredictedCmeans <- cl_predict(cmeansCluster,testData1,type = "class_ids")
-resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 3] = 0
-resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 1| resultsDF$PredictedCmeans == 2] = 1
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedCmeans,levels = 0:1))
-```
-Majority vote: It’s defined as taking the prediction with maximum vote / recommendation from multiple models predictions while predicting the outcomes of a classification problem.
-```{r}
-determineMajority <- function(){
-  for(i in 1:nrow(resultsDF)) 
-  {
-    if(rowSums(resultsDF[i,][2:5]) >= 2){
-      resultsDF$PredictedVote[i] = 1
-    }
-    else{
-      resultsDF$PredictedVote[i] = 0
-    }
-  }
-  return (resultsDF$PredictedVote)
-}
-
-resultsDF$PredictedVote = 1:nrow(resultsDF)
-resultsDF$PredictedVote = determineMajority()
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedVote,levels = 0:1))
-```
-
-
-Weighted average: In this, different weights are applied to predictions from multiple models then taking the average which means giving high or low importance to specific model output.
-Assigning weights based on the accuracies of the models.
-We address the task of choosing prior weights for models that are to be used for weighted model averaging.
-Models that are very similar should usually be given smaller weights than models that are quite distinct.
-The weighting schemes give smaller weights to models that are more highly correlated. Other desirable properties of a weighting scheme are identified, and we examine the extent to which these properties are held by the proposed methods.
-The weighting schemes are applied to real data, and prior weights, posterior weights and Bayesian model averages are determined. For these data, empirical Bayes methods were used to form the correlation matrices that yield the prior weights. Predictive variances are examined, as empirical Bayes methods can result in unrealistically small variances.
-```{r}
-corrMatrix <- cor(resultsDF)
-corrplot(corrMatrix,method = "number",title = "Correlation Between Different Models",mar = c(0,0,2,0))
-corrplot(cov(resultsDF),method = "number",title = "Covariace Between Different Models",mar = c(0,0,2,0))
-```
-From the above results we observe there is no significant correlation or covariance between two models.Hence considering all of them is essential.The weights can hence be assigned according to the accuracies of the different models.
-Cmeans - 0.33
-Kmeans - 0.25
-KMedoids - 0.24
-KMedian - 0.28
-```{r}
-# table(resultsDF)
-wAverageRow <- function(row){
-  weights <- c(2,3,3,7)/15
-  return(weighted.mean(row,weights))
-}
-wAverageDetermination <- function(){
-  for(i in 1:nrow(resultsDF)) 
-  {
-    resultsDF$PredictedWA[i] = wAverageRow(resultsDF[i,][2:5])
-    if(resultsDF$PredictedWA[i] >= 0.5){
-      resultsDF$PredictedVote[i] = 1
-    }
-    else{
-      resultsDF$PredictedVote[i] = 0
-    }
-  }
-  return (resultsDF$PredictedWA)
-}
-resultsDF$PredictedWA = 1:nrow(resultsDF)
-resultsDF$PredictedWA = wAverageDetermination()
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedWA,levels = 0:1))
-# hist(resultsDF$PredictedWA)
-```
 
