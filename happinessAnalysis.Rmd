@@ -34,7 +34,7 @@ bmi = function(height,weight){
 }
 df$bmi = bmi(df$Height,df$Weight)
 
-hist(df$bmi,col = "blue",breaks = 100,xlim = c(12,60))
+hist(df$bmi,col = "blue",breaks = 100,xlim = c(12,60),main="Histogram For BMI")
 # Since BMI is the numerical value of a scale different from other variables we redcode the data to the same scale.
 # 1,2,3,4,5 being underweight,fit,healthy,overweight and obese respectively.
 df$bmi[df$bmi <= 18.5] = 1
@@ -88,7 +88,7 @@ mae(logitModel$residuals)
 ```
 
 ```{r}
-modify <- function(x) 5-x
+modify <- function(x) x
 
 modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
 pcaHappinessSadness <- prcomp(modifiedHappinessSadness)
@@ -122,7 +122,7 @@ corrVals$Attributes = as.vector(colnames(workingData))
 corrValsModified <- corrVals
 corrValsModified$Attributes <- factor(corrValsModified$Attributes, levels = corrValsModified$Attributes[order(-corrValsModified$corrVals)])
 relevantTraits <- corrValsModified[(corrValsModified$corrVals >= 0.25 | corrValsModified$corrVals <= -0.25),]
-p <- ggplot(relevantTraits, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()
+p <- ggplot(relevantTraits, aes(x=Attributes,y=corrVals,fill = Attributes)) + geom_bar(stat="identity") + scale_fill_hue() + coord_flip()+ggtitle("Relevant Attributes")
 print(p)
 print(relevantTraits$Attributes)
 return(relevantTraits)
@@ -401,22 +401,78 @@ confusionMatrix(tableDataHierarchicalTest)
 
 
 ```{r}
-#Decision Tree 
-
+#Decision Tree using CART method
+set.seed(1)
 library(rpart)
 library(rpart.plot)
 
-fit <- rpart(Happy~Health+Changing.the.past+Public.speaking+Interests.or.hobbies+Storm+Darkness+Spiders+Fear.of.public.speaking+Cars+Active.sport+Adrenaline.sports+Romantic+Western+Action, data = trainData1, method = 'class')
-rpart.plot(fit, extra = 101)
+fit <- rpart(Happy~., data = trainData1, method = 'class')
+rpart.plot(fit, extra = 101,main="Decision Tree using CART method")
 
 predictedVal <-predict(fit, testData1, type = 'class')
 
 tableMat <- table(testData1$Happy, predictedVal)
-confusionMatrix(tableMat)
+confusionMatrix(tableMat,positive = '1',mode="prec_recall")
 
 
 ```
+C5.0 is an extension of ID3 algorithm to generate a decision tree and uses normalized information gain as the criteria to split the samples into a class.
 
+```{r}
+#Decision Tree using C5.0
+library(C50)
+set.seed(123)
+model <- C5.0(factor(Happy)~Health+Changing.the.past+Interests.or.hobbies+Fear.of.public.speaking+Romantic,data=trainData1)
+plot(model,main="Decision Tree for C5.0 method")
+resultsDF$predictedDTC5 = predict(model,testData1)
+confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
+
+```
+
+
+Random Forest is an ensemble classification method that generates multiple decision trees and outputs the mode of the classes.
+```{r}
+#Decision tree using Random Forest
+
+
+library(randomForest)
+set.seed(1)
+rf = randomForest(factor(Happy)~.,data = trainData1,ntree=750)
+plot(rf)
+varImpPlot(rf,main="Importance of variables")
+resultsDF$predictedRf = predict(rf,testData1)
+confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive = '1',mode="prec_recall")
+
+```
+
+
+```{r}
+#SVM linear
+
+svmLinearModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="linear")
+resultsDF$predictedSvmLinear = predict(svmLinearModel,testData1)
+confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
+plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+```
+```{r}
+#SVM polynomial
+
+svmPolyModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="polynomial")
+resultsDF$predictedSvmPoly = predict(svmPolyModel,testData1)
+confusionMatrix(factor(resultsDF$predictedSvmPoly),factor(testData1$Happy),positive = '1',mode="prec_recall")
+plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+
+```
+
+```{r}
+#SVM radial 
+
+svmRadialModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="radial")
+resultsDF$predictedSvmRadial = predict(svmRadialModel,testData1)
+confusionMatrix(factor(resultsDF$predictedSvmRadial),factor(testData1$Happy),positive = '1',mode="prec_recall")
+plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+
+```
 
 ```{r}
 
@@ -435,15 +491,8 @@ predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
 resultsDF$PredictedPam = predictedClusterPam
 resultsDF$PredictedPam[resultsDF$PredictedPam == 3 |resultsDF$PredictedPam == 5 | resultsDF$PredictedPam == 6] = 0
 resultsDF$PredictedPam[resultsDF$PredictedPam == 1| resultsDF$PredictedPam == 2 | resultsDF$PredictedPam == 4] = 1
-confusionMatrixPam = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1))
+confusionMatrixPam = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1),positive = '1',mode="prec_recall")
 print(confusionMatrixPam)
-
-#Considering Positive Class as '1'
-recallPam = confusionMatrixPam$table[4] / (confusionMatrixPam$table[4]+confusionMatrixPam$table[2])
-precisionPam = confusionMatrixPam$table[4] /(confusionMatrixPam$table[4]+confusionMatrixPam$table[3])
-fScorePam = (2*recallPam*precisionPam)/(recallPam+precisionPam)
-print("Fscore:")
-print(fScorePam)
 
 ```
 
