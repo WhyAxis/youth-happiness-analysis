@@ -62,6 +62,30 @@ for (factorV in happinessFactors){
 }
 
 ```
+We need to verify our assumption,as to our these factors actually detrminants of someone's happiness in life.
+We use logistic regression to predict happiness in life using the other variables.
+```{r}
+formulaStr <- paste(names(happinessSadness[c(1:7,9,10)]), collapse='+')
+formulaStr <- paste("Happiness.in.life ~",formulaStr)
+# as.formula(formulaStr)
+logitModel <- glm( as.formula(formulaStr),data = happinessSadness, family = "poisson", maxit = 100)
+print(summary(logitModel))
+tempTestData <- df[sample(1:nrow(df),300,replace = TRUE),]
+tempTestData <- tempTestData[happinessFactors]
+predictedV <- predict(logitModel,tempTestData)
+# polr(as.formula(formulaStr),happinessSadness)
+
+plot(logitModel$residuals,logitModel$fitted.values)
+# Function for Root Mean Squared Error
+RMSE <- function(error) { sqrt(mean(error^2)) }
+RMSE(logitModel$residuals)
+
+# If you want, say, MAE, you can do the following:
+
+# Function for Mean Absolute Error
+mae <- function(error) { mean(abs(error)) }
+mae(logitModel$residuals)
+```
 
 ```{r}
 modify <- function(x) 5-x
@@ -113,8 +137,6 @@ df$Happy[df$Happy == FALSE] = 0
 df$Happy = as.numeric(df$Happy)
 workingData <- df
 nreqVariables = names(workingData) %in% happinessFactors
-# workingData$Happy = df$Happy
-
 relevantAttributes1 <- findCorrelation(workingData = workingData[!nreqVariables],workingData$Happy)
 
 ```
@@ -131,6 +153,7 @@ library(scales)
 ```
 
 ```{r}
+
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData1 <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
 rawData1$Happy <- na.omit(df$Happy)
@@ -144,6 +167,12 @@ actualData1 <- df[nrowsTrain:nrow(df),]
 testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
 # resultsDF <- data.frame(matrix(NA,nrow = nrow(testData1)))
 resultsDF <- data.frame(testData1$Happy)
+columnNames <- colnames(rawData1)
+
+par(mfrow=c(2,5),mar=c(2,2,2,2))
+for (factorV in columnNames[1:15]){
+  hist(trainData1[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
+}
 ```
 
 
@@ -154,10 +183,34 @@ resultsDF <- data.frame(testData1$Happy)
 fviz_nbclust(trainData1, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData1, 3, nstart = 25,iter.max = 10)
+km.res <- kmeans(trainData1, 3, nstart = 25,iter.max = 10000)
 km.res$centers
 fviz_cluster(km.res, data = trainData1)
+kmeansCluster <- trainData1
+kmeansCluster$clusterNo <- km.res$cluster
+clusplot(kmeansCluster[c("Adrenaline.sports","Active.sport","Health")],kmeansCluster$clusterNo)
+clusplot(kmeansCluster[c("Changing.the.past","Spiders","Storm","Darkness")],kmeansCluster$clusterNo,main = "Negative Impactors of Happy Clustered together")
+clusplot(kmeansCluster[c(colnames(trainData1))],kmeansCluster$clusterNo)
+table(kmeansCluster$Darkness,kmeansCluster$clusterNo)
 ```
+
+```{r}
+library(gridExtra)
+for(factorV in colnames(trainData1)){
+tempdf <- kmeansCluster %>%
+    group_by(clusterNo,!!sym(factorV)) %>%
+    summarise(counts = n())
+  
+  p <- ggplot(tempdf, aes(fill=!!sym(factorV), y = counts,x=clusterNo)) +
+      geom_bar(position="dodge", stat="identity",width = 0.3)+
+    labs(title=paste("Cluster Analysis for",factorV), x="Cluster No", y="No of people belonging to the cluster") + 
+    theme(plot.title = element_text(size=16, margin=margin(13,100,13,0)))
+  print(p)
+}
+# grid.arrange(p,nrow = 3,ncol = 5)
+
+```
+
 
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData1))
@@ -326,11 +379,11 @@ colnames(dendClustersTest)[1]<-"predictedHierarchical"
 modifiedDendClustersTest<-dendClustersTest
 for (i in 1:nrow(modifiedDendClustersTest))
 {
-  #If it is cluster 1,Happy value =0
+  #If it is cluster 1,Happy value = 0
   if(modifiedDendClustersTest$predictedHierarchical[i]==1)
     modifiedDendClustersTest$predictedHierarchical[i]<-0
   else
-    #If it is cluster 2,Happy value =1
+    #If it is cluster 2,Happy value = 1
     modifiedDendClustersTest$predictedHierarchical[i]<-1
 }
 
@@ -423,6 +476,7 @@ confusionMatrix(factor(testData1$Happy,levels = 0:1),factor(resultsDF$predictedK
 
 ```{r}
 # set.seed(1)
+library(cluster)
 library(e1071)
 cmeansCluster <- cmeans(trainData1,centers = 3 ,iter.max = 100, verbose = FALSE,dist = "manhattan", method = "cmeans", m = 2,rate.par = NULL, weights = 1, control = list())
 cmeansCluster$centers
@@ -435,12 +489,16 @@ resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 3] = 0
 resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 1| resultsDF$PredictedCmeans == 2] = 1
 confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedCmeans,levels = 0:1))
 ```
+
+```{r}
+
+```
 Majority vote: It’s defined as taking the prediction with maximum vote / recommendation from multiple models predictions while predicting the outcomes of a classification problem.
 ```{r}
 determineMajority <- function(){
   for(i in 1:nrow(resultsDF)) 
   {
-    if(rowSums(resultsDF[i,][2:5]) >= 2){
+    if(rowSums(resultsDF[i,][c(2,4:6)]) >= 2){
       resultsDF$PredictedVote[i] = 1
     }
     else{
