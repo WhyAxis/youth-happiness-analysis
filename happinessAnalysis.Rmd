@@ -166,7 +166,7 @@ testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
 # resultsDF <- data.frame(matrix(NA,nrow = nrow(testData1)))
 resultsDF <- data.frame(testData1$Happy)
 columnNames <- colnames(rawData1)
-
+resultsList = list()
 par(mfrow=c(2,5),mar=c(2,2,2,2))
 for (factorV in columnNames[1:15]){
   hist(trainData1[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
@@ -201,7 +201,7 @@ tempdf <- kmeansCluster %>%
   p <- ggplot(tempdf, aes(fill=!!sym(factorV), y = counts,x=clusterNo)) +
       geom_bar(position="dodge", stat="identity",width = 0.3)+
     labs(title=paste("Cluster Analysis for",factorV), x="Cluster No", y="No of people belonging to the cluster") + 
-    theme(plot.title = element_text(size=16, margin=margin(13,100,13,0)))
+    theme(plot.title = element_text(size=16))
   print(p)
 }
 # grid.arrange(p,nrow = 3,ncol = 5)
@@ -214,7 +214,7 @@ predictedCluster <- as.vector(cl_predict(km.res,testData1))
 resultsDF$PredictedKmean = predictedCluster
 resultsDF$PredictedKmean[resultsDF$PredictedKmean == 3| resultsDF$PredictedKmean == 2] = 0
 resultsDF$PredictedKmean[resultsDF$PredictedKmean == 1] = 1
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedKmean,levels = 0:1))
+resultsList$Kmeans <- confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedKmean,levels = 0:1),positive = '1',mode="prec_recall")
 ```
 
 ```{r}
@@ -242,7 +242,7 @@ testData2$PredictedKmean2 = predictedCluster
 testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
 testData2$PredictedKmean[testData2$PredictedKmean == 3 ] = 3
 testData2$PredictedKmean[testData2$PredictedKmean == 4 | testData2$PredictedKmean == 1| testData2$PredictedKmean == 7|testData2$PredictedKmean == 2 ] = 5
-confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5))
+confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5),mode="prec_recall")
 
 
 ```
@@ -330,7 +330,7 @@ referenceData<-rawData1$Happy
 predictedData<-modifiedDendClusters$predicted.clusters
 unionData <- union(predictedData,referenceData)
 tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
-confusionMatrix(tableData)
+confusionMatrix(tableData,positive = '1',mode="prec_recall")
 #We get an accuracy of 52.13%
 ```
 
@@ -402,7 +402,8 @@ referenceDataTest<-testData1$Happy
 predictedDataHierarchicalTest<-resultsDF$predictedHierarchical
 unionDataHierarchicalTest <- union(predictedDataHierarchicalTest,referenceDataTest)
 tableDataHierarchicalTest <- table(factor(predictedDataHierarchicalTest, unionDataHierarchicalTest), factor(referenceDataTest, unionDataHierarchicalTest))
-confusionMatrix(tableDataHierarchicalTest)
+resultsList$Hierarchical <- confusionMatrix(tableDataHierarchicalTest,positive = '1',mode="prec_recall")
+print(resultsList$Hierarchical)
 #We get an accuracy of 63.13%
 ```
 
@@ -419,7 +420,7 @@ rpart.plot(fit, extra = 101,main="Decision Tree using CART method")
 predictedVal <-predict(fit, testData1, type = 'class')
 
 tableMat <- table(testData1$Happy, predictedVal)
-confusionMatrix(tableMat,positive = '1',mode="prec_recall")
+resultsList$DecTreeCart <- confusionMatrix(tableMat,positive = '1',mode="prec_recall")
 
 
 ```
@@ -432,8 +433,8 @@ set.seed(123)
 model <- C5.0(factor(Happy)~Health+Changing.the.past+Interests.or.hobbies+Fear.of.public.speaking+Romantic,data=trainData1)
 plot(model,main="Decision Tree for C5.0 method")
 resultsDF$predictedDTC5 = predict(model,testData1)
-confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
-
+resultsList$DecTreeC50 <- confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$DecTreeC50)
 ```
 
 
@@ -448,17 +449,18 @@ rf = randomForest(factor(Happy)~.,data = trainData1,ntree=750)
 plot(rf)
 varImpPlot(rf,main="Importance of variables")
 resultsDF$predictedRf = predict(rf,testData1)
-confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive = '1',mode="prec_recall")
-
+resultsList$DecTreeRF <- confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$DecTreeRF)
 ```
 
 
 ```{r}
 #SVM linear
-
+library(e1071)
 svmLinearModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="linear")
 resultsDF$predictedSvmLinear = predict(svmLinearModel,testData1)
-confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
+resultsList$svmLin <- confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmLin)
 plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
 ```
 ```{r}
@@ -466,7 +468,8 @@ plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies)
 
 svmPolyModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="polynomial")
 resultsDF$predictedSvmPoly = predict(svmPolyModel,testData1)
-confusionMatrix(factor(resultsDF$predictedSvmPoly),factor(testData1$Happy),positive = '1',mode="prec_recall")
+resultsList$svmPoly <- confusionMatrix(factor(resultsDF$predictedSvmPoly),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmPoly)
 plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
 
 ```
@@ -476,7 +479,8 @@ plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies)
 
 svmRadialModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="radial")
 resultsDF$predictedSvmRadial = predict(svmRadialModel,testData1)
-confusionMatrix(factor(resultsDF$predictedSvmRadial),factor(testData1$Happy),positive = '1',mode="prec_recall")
+resultsList$svmRadial <- confusionMatrix(factor(resultsDF$predictedSvmRadial),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmRadial)
 plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
 
 ```
@@ -498,8 +502,8 @@ predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
 resultsDF$PredictedPam = predictedClusterPam
 resultsDF$PredictedPam[resultsDF$PredictedPam == 3 |resultsDF$PredictedPam == 5 | resultsDF$PredictedPam == 6] = 0
 resultsDF$PredictedPam[resultsDF$PredictedPam == 1| resultsDF$PredictedPam == 2 | resultsDF$PredictedPam == 4] = 1
-confusionMatrixPam = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1),positive = '1',mode="prec_recall")
-print(confusionMatrixPam)
+resultsList$KMedoid = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1),factor(testData1$Happy,levels = 0:1),positive = '1',mode="prec_recall")
+print(resultsList$KMedoid)
 
 ```
 ##K-MEDIANS CLUSTERING
@@ -519,7 +523,7 @@ for(i in 1:15)
 }
 kMedianValues = parameters(kMedian)
 #To print the median value of each cluster
-kMedianValues
+print(kMedianValues)
 kMedianTrainClusters<-clusters(kMedian)
 #Plotting the clusters
 clusplot(trainData1,kMedianTrainClusters,main = paste("CLUSPLOT For K Medians(k=4)"))
@@ -532,7 +536,8 @@ resultsDF$predictedKMedian = predClusterMedian
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 2| resultsDF$predictedKMedian  == 4] = 0
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 1| resultsDF$predictedKMedian  == 3] = 1
 #Computing a confusion matrix of the predicted and actual data
-confusionMatrix(factor(resultsDF$predictedKMedian,levels = 0:1),factor(testData1$Happy ,levels = 0:1))
+resultsList$KMedian <- confusionMatrix(factor(resultsDF$predictedKMedian,levels = 0:1),factor(testData1$Happy ,levels = 0:1),positive = '1',mode="prec_recall")
+print(resultsList$KMedian)
 #Accuracy=68.69%
 ```
 
@@ -540,9 +545,8 @@ confusionMatrix(factor(resultsDF$predictedKMedian,levels = 0:1),factor(testData1
 ```{r}
 # set.seed(1)
 library(cluster)
-library(e1071)
 cmeansCluster <- cmeans(trainData1,centers = 3 ,iter.max = 100, verbose = FALSE,dist = "manhattan", method = "cmeans", m = 2,rate.par = NULL, weights = 1, control = list())
-cmeansCluster$centers
+print(cmeansCluster$centers)
 clusplot(trainData1,cmeansCluster$cluster)
 ```
 
@@ -550,30 +554,39 @@ clusplot(trainData1,cmeansCluster$cluster)
 resultsDF$PredictedCmeans <- cl_predict(cmeansCluster,testData1,type = "class_ids")
 resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 3] = 0
 resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 1| resultsDF$PredictedCmeans == 2] = 1
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedCmeans,levels = 0:1))
+resultsList$Cmeans <- confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedCmeans,levels = 0:1),positive = '1',mode="prec_recall")
+print(resultsList$Cmeans)
 ```
 
 ```{r}
-
+resultListNames <- names(resultsList)
+for(i in c(1:11)){
+  print(resultListNames[i])  
+  print(resultsList[[i]]$overall["Accuracy"])
+  print(resultsList[[i]]$byClass["F1"])
+}
 ```
 Majority vote: It’s defined as taking the prediction with maximum vote / recommendation from multiple models predictions while predicting the outcomes of a classification problem.
 ```{r}
-determineMajority <- function(){
-  for(i in 1:nrow(resultsDF)) 
+determineMajority <- function(resDF,n){
+  for(i in 1:nrow(resDF)) 
   {
-    if(rowSums(resultsDF[i,][c(2,4:6)]) >= 2){
-      resultsDF$PredictedVote[i] = 1
+    if(rowSums(resDF[i,]) >= n) {
+      resDF$PredictedVote[i] = 1
     }
     else{
-      resultsDF$PredictedVote[i] = 0
+      resDF$PredictedVote[i] = 0
     }
   }
-  return (resultsDF$PredictedVote)
+  return (resDF$PredictedVote)
 }
-
+resultsDF[] <- lapply(resultsDF, function(x) as.numeric(as.character(x)))
+resultsDF <- as.data.frame(resultsDF)
 resultsDF$PredictedVote = 1:nrow(resultsDF)
-resultsDF$PredictedVote = determineMajority()
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedVote,levels = 0:1))
+resultsDF$PredictedClusterVote = determineMajority(resultsDF[c(2,9:11)],3)
+resultsDF$PredictedVote = determineMajority(resultsDF[c(2,4,5,8,11)],3)
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedClusterVote,levels = 0:1),positive = '1',mode="prec_recall")
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedVote,levels = 0:1),positive = '1',mode="prec_recall")
 ```
 
 
@@ -584,25 +597,24 @@ Models that are very similar should usually be given smaller weights than models
 The weighting schemes give smaller weights to models that are more highly correlated. Other desirable properties of a weighting scheme are identified, and we examine the extent to which these properties are held by the proposed methods.
 The weighting schemes are applied to real data, and prior weights, posterior weights and Bayesian model averages are determined. For these data, empirical Bayes methods were used to form the correlation matrices that yield the prior weights. Predictive variances are examined, as empirical Bayes methods can result in unrealistically small variances.
 ```{r}
-corrMatrix <- cor(resultsDF)
+importantResults <- resultsDF[c(2,3,4,6,9,10,11)]
+corrMatrix <- cor(importantResults)
 corrplot(corrMatrix,method = "number",title = "Correlation Between Different Models",mar = c(0,0,2,0))
-corrplot(cov(resultsDF),method = "number",title = "Covariace Between Different Models",mar = c(0,0,2,0))
+corrplot(cov(importantResults),method = "number",title = "Covariace Between Different Models",mar = c(0,0,2,0))
 ```
 From the above results we observe there is no significant correlation or covariance between two models.Hence considering all of them is essential.The weights can hence be assigned according to the accuracies of the different models.
-Cmeans - 0.33
-Kmeans - 0.25
-KMedoids - 0.24
-KMedian - 0.28
+We observe a significant correlation between Kmeans and Kmedian proving the similarity of the methods altogether.
+We consider the other algorithms with following weights
 ```{r}
 # table(resultsDF)
 wAverageRow <- function(row){
-  weights <- c(2,3,3,7)/15
+  weights <- c(3,1,3,3,3,7)/20
   return(weighted.mean(row,weights))
 }
 wAverageDetermination <- function(){
   for(i in 1:nrow(resultsDF)) 
   {
-    resultsDF$PredictedWA[i] = wAverageRow(resultsDF[i,][2:5])
+    resultsDF$PredictedWA[i] = wAverageRow(resultsDF[i,][c(2,3,4,6,9,11)])
     if(resultsDF$PredictedWA[i] >= 0.5){
       resultsDF$PredictedVote[i] = 1
     }
@@ -614,7 +626,7 @@ wAverageDetermination <- function(){
 }
 resultsDF$PredictedWA = 1:nrow(resultsDF)
 resultsDF$PredictedWA = wAverageDetermination()
-confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedWA,levels = 0:1))
+confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedWA,levels = 0:1),positive = '1',mode="prec_recall")
 # hist(resultsDF$PredictedWA)
 ```
 
