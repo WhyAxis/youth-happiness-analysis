@@ -21,8 +21,6 @@ is.finite.data.frame <- function(obj){
     sapply(obj,FUN = function(x) all(is.finite(x)))
 }
 df <- df[rowSums(is.na(df)) == 0, ]
-# df[rowSums(is.finite(df)) == 0, ]
-# df <- na.omit(df[relevantAttributes1$Attributes])
 ```
 
 ```{r}
@@ -177,7 +175,6 @@ for (factorV in columnNames[1:15]){
 
 
 ```{r}
-
 #K-Means clustering for the data
 #Method 1
 fviz_nbclust(trainData1, kmeans, method = "wss") +
