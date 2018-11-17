@@ -1,8 +1,8 @@
 ---
 title: "R Notebook"
 output:
-  html_notebook: default
   html_document: default
+  html_notebook: default
 ---
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
@@ -266,6 +266,10 @@ confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testDat
 #We get accuracy of 67.65% using this method
 
 ```
+##HIERARCHICAL CLUSTERING
+Hierarchical clustering is an approach for identifying clustering in the dataset by using pairwise distance matrix between observations as clustering criteria.
+We perform hierarchical clustering using k=2 i.e classifying into 2 clusters.
+We have used "complete" method of hierarchical clustering.
 
 ```{r}
 #Hierarchical clustering for all the relevant attributes
@@ -312,7 +316,7 @@ dendClusters <- lapply(hclustDendlist, getClusters)
 dendClusters<-as.data.frame(dendClusters)
 colnames(dendClusters)[1]<-"predicted.clusters"
 modifiedDendClusters<-dendClusters
-for (i in 1:986)
+for (i in 1:nrow(modifiedDendClusters))
 {
   #If it is cluster 1,Happy value =0
   if(modifiedDendClusters$predicted.clusters[i]==1)
@@ -330,8 +334,10 @@ confusionMatrix(tableData)
 #We get an accuracy of 52.13%
 ```
 
+Hierarchical clustering and prediction on test data.
+Here also we classify into 2 clusters by taking k=2 and we use the "ward.D" method.
 ```{r}
-#Hierarchical clustering for testData1
+#Hierarchical clustering and prediction using test data
 library(dendextend)
 library(colorspace)
 distCalcTest <- dist(testData1)
@@ -358,11 +364,13 @@ plot(dendTest,
      main = "Hierarchical Clustering on Test Data", 
      horiz =  TRUE,  nodePar = list(cex = .007))
 legend("topleft", legend = happyLevelsTest, fill = rainbow_hcl(2))
+```
 
-hclusteringMethod <- c("ward.D")
+```{r}
+hclusteringMethodTest <- c("ward.D")
 hclustDendlistTest <- dendlist()
-for(i in seq_along(hclusteringMethod)) {
-  hClusterTest <- hclust(distCalcTest , method = hclusteringMethod[i])
+for(i in seq_along(hclusteringMethodTest)) {
+  hClusterTest <- hclust(distCalcTest , method = hclusteringMethodTest[i])
   hclustDendlistTest <- dendlist(hclustDendlistTest, as.dendrogram(hClusterTest))
 }
 #hclustDendlistTest
@@ -372,7 +380,9 @@ getClustersTest <- function(dendTest) {
 }
 dendClustersTest <- lapply(hclustDendlistTest, getClustersTest)
 dendClustersTest<-as.data.frame(dendClustersTest)
+
 colnames(dendClustersTest)[1]<-"predictedHierarchical"
+
 modifiedDendClustersTest<-dendClustersTest
 for (i in 1:nrow(modifiedDendClustersTest))
 {
@@ -383,13 +393,13 @@ for (i in 1:nrow(modifiedDendClustersTest))
     #If it is cluster 2,Happy value = 1
     modifiedDendClustersTest$predictedHierarchical[i]<-1
 }
+resultsDF<-cbind(resultsDF,modifiedDendClustersTest)
+```
 
-#Check
-resultsDF$predictedHierarchical<-modifiedDendClustersTest
-
+```{r}
 #For the confusion Matrix
 referenceDataTest<-testData1$Happy
-predictedDataHierarchicalTest<-modifiedDendClustersTest$predictedHierarchical
+predictedDataHierarchicalTest<-resultsDF$predictedHierarchical
 unionDataHierarchicalTest <- union(predictedDataHierarchicalTest,referenceDataTest)
 tableDataHierarchicalTest <- table(factor(predictedDataHierarchicalTest, unionDataHierarchicalTest), factor(referenceDataTest, unionDataHierarchicalTest))
 confusionMatrix(tableDataHierarchicalTest)
@@ -492,13 +502,17 @@ confusionMatrixPam = confusionMatrix(factor(resultsDF$PredictedPam,levels = 0:1)
 print(confusionMatrixPam)
 
 ```
+##K-MEDIANS CLUSTERING
+k-medians clustering partitions the observations into k clusters in which each observation belongs to the cluster with the nearest median.
+This method uses 1-norm distance metric(Manhattan distance) for classifying the observations into clusters.
+We consider k=4 and perform k-medians clustering on the Training data.This model is used to predict the clusters for Test data.
+The accuracy is obtained by comparing the actual and predicted cluster values of Test data.
 
 ```{r}
 library(flexclust)
-# K Median Clustering
 set.seed(12)
-#To iterate and train the model 15 times
 #Considering k=4
+#To iterate and train the model 15 times
 for(i in 1:15)
 {
   kMedian = kcca(trainData1, k=4, kccaFamily("kmedians"),save.data = TRUE)
@@ -507,6 +521,7 @@ kMedianValues = parameters(kMedian)
 #To print the median value of each cluster
 kMedianValues
 kMedianTrainClusters<-clusters(kMedian)
+#Plotting the clusters
 clusplot(trainData1,kMedianTrainClusters,main = paste("CLUSPLOT For K Medians(k=4)"))
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
 ```
@@ -516,7 +531,9 @@ predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedian
 resultsDF$predictedKMedian = predClusterMedian
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 2| resultsDF$predictedKMedian  == 4] = 0
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 1| resultsDF$predictedKMedian  == 3] = 1
-confusionMatrix(factor(testData1$Happy,levels = 0:1),factor(resultsDF$predictedKMedian ,levels = 0:1))
+#Computing a confusion matrix of the predicted and actual data
+confusionMatrix(factor(resultsDF$predictedKMedian,levels = 0:1),factor(testData1$Happy ,levels = 0:1))
+#Accuracy=68.69%
 ```
 
 
