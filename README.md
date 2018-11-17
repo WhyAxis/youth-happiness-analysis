@@ -56,7 +56,7 @@ Following are the details of the packages used:
   
 We check for missing data in the data set and conclude that the missing data is a case of MCAR(Missing Completely at Random).
 Therefore we use PMM(Predictive Mean Matching) method of mice() which is suitable to impute the missing numerical values.
-
+The output of this file is in imputedResponses.csv
 
 ### Feature Extraction
 The process of feature extraction involves analyzing the data
