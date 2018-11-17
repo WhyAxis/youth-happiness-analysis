@@ -88,21 +88,48 @@ mae(logitModel$residuals)
 ```
 
 ```{r}
-modify <- function(x) x
-
+modify <- function(x) 5-x
 modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
-pcaHappinessSadness <- prcomp(modifiedHappinessSadness)
-pcaHappinessSadness = as.data.frame(pcaHappinessSadness$x[,1])
+
+pca <- prcomp(modifiedHappinessSadness)
+pcaHappinessSadness = as.data.frame(pca$x[,1])
 Happy <- vector(length = 986)
 modifiedHappinessSadness = cbind(modifiedHappinessSadness,pcaHappinessSadness,Happy)
 colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
-modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] = "FALSE"
-modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] = "TRUE"
+pcaCorrelation = cor(happinessSadness,pca$x[,1:4])
+corrplot(pcaCorrelation)
+modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness>0] = "FALSE"
+modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness<0] = "TRUE"
 df$Happy <- modifiedHappinessSadness$Happy
 happinessCount <- table(df$Happy,df$Gender)
 barplot(happinessCount, main = paste("Happy vs Gender"), col = c("red","blue"))
 legend("topright",legend = rownames(happinessCount),fill = c("red","blue") ,ncol = 1,cex = 0.4)
 ```
+```{r}
+# Helper function 
+varCoordFunc <- function(loadings, comp.sdev){
+  loadings*comp.sdev
+}
+# Compute Coordinates
+loadings <- pca$rotation
+sdev <- pca$sdev
+varCoord <- t(apply(loadings, 1, varCoordFunc, sdev))
+
+# Compute Cos2
+varCos2 <- varCoord^2
+
+# Compute contributions
+compCos2 <- apply(varCos2, 2, sum)
+contrib <- function(varCos2, compCos2){varCos2*100/compCos2}
+varContrib <- t(apply(varCos2,1, contrib, compCos2))
+varContrib[,1:2]
+
+
+
+
+```
+
+
 
 ```{r}
 
@@ -223,6 +250,10 @@ confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$Predicte
 ```{r}
 rawData2 <- na.omit(df[as.vector(relevantAttributes2$Attributes)])
 rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
+rawData2$happinessModified = rawData2$Happiness.in.life
+rawData2$happinessModified[rawData2$happinessModified<=3] = 0
+rawData2$happinessModified[rawData2$happinessModified>3] = 1
+rawData2[-c(10)]
 nrowsTrain <- 0.9*nrow(rawData2)
 trainData2 <- rawData2[1:nrowsTrain,]
 actualData <- df[nrowsTrain:nrow(df),]
@@ -233,7 +264,7 @@ testData2 <- rawData2[nrowsTrain:nrow(rawData2),]
 fviz_nbclust(trainData2, kmeans, method = "wss") +
   geom_vline(xintercept = 5, linetype = 2)
 set.seed(123)
-km.res <- kmeans(trainData2, 7, nstart = 25)
+km.res <- kmeans(trainData2, 3, nstart = 25)
 tempCenters <- as.data.frame(km.res$centers)
 print(tempCenters)
 fviz_cluster(km.res, data = trainData2)
@@ -242,10 +273,10 @@ fviz_cluster(km.res, data = trainData2)
 ```{r}
 predictedCluster <- as.vector(cl_predict(km.res,testData2))
 testData2$PredictedKmean2 = predictedCluster
-testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
-testData2$PredictedKmean[testData2$PredictedKmean == 3 ] = 3
-testData2$PredictedKmean[testData2$PredictedKmean == 4 | testData2$PredictedKmean == 1| testData2$PredictedKmean == 7|testData2$PredictedKmean == 2 ] = 5
-confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testData2$PredictedKmean,levels = 1:5))
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 1 | testData2$PredictedKmean2 == 2 ] = 0
+# testData2$PredictedKmean[testData2$PredictedKmean ==  ] = 3
+testData2$PredictedKmean2[testData2$PredictedKmean2 == 3] = 1
+confusionMatrix(factor(testData2$happinessModified,levels = 0:1),factor(testData2$PredictedKmean2,levels = 0:1))
 
 
 ```
@@ -432,7 +463,9 @@ C5.0 is an extension of ID3 algorithm to generate a decision tree and uses norma
 #Decision Tree using C5.0
 library(C50)
 set.seed(123)
-model <- C5.0(factor(Happy)~Health+Changing.the.past+Interests.or.hobbies+Fear.of.public.speaking+Romantic,data=trainData1)
+formulaStrDt <- paste(names(trainData1[c(1:2,5,9,13)]), collapse='+')
+formulaStrDt <- paste("factor(Happy) ~",formulaStrDt)
+model <- C5.0(as.formula(formulaStrDt),data=trainData1)
 plot(model,main="Decision Tree for C5.0 method")
 resultsDF$predictedDTC5 = predict(model,testData1)
 confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
@@ -458,11 +491,11 @@ confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive =
 
 ```{r}
 #SVM linear
-
+library(e1071)
 svmLinearModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="linear")
 resultsDF$predictedSvmLinear = predict(svmLinearModel,testData1)
 confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
-plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies)
 ```
 ```{r}
 #SVM polynomial
