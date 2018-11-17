@@ -1,39 +1,27 @@
----
-title: "R Notebook"
-output:
-  html_document: default
-  html_notebook: default
----
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-```{r}
+##PREPROCESSING OF DATA
+Load the necessary packages.
+```{r setup, warning = FALSE,message=FALSE}
 library(corrplot)
 library(dplyr)
 library(ggplot2)
 library(DescTools)
 library(cluster)
-# setwd("~/Downloads/DA/young-people-survey/youth-happiness-analysis/")
 df <- read.csv("imputedResponses.csv",na.strings=c(""," ","NA"))
 is.finite.data.frame <- function(obj){
     sapply(obj,FUN = function(x) all(is.finite(x)))
 }
-df <- df[rowSums(is.na(df)) == 0, ]
+df <- df[rowSums(is.na(df)) == 0,]
 ```
-
-```{r}
-# As we studied in prior kernels,considering bmi instead if height and weight as separate metrics is better.
-# We have established that the height is in cms and weight in kgs.
-
+We understand that body mass index is a better measure compared to height and weight individually,hence we replace the individual measures with the combined measure.
+We have established that the height is in cms and weight in kgs.
+```{r warning = FALSE,message=FALSE}
 bmi = function(height,weight){
   return(weight/(height/100)^2)
 }
 df$bmi = bmi(df$Height,df$Weight)
 
-hist(df$bmi,col = "blue",breaks = 100,xlim = c(12,60),main="Histogram For BMI")
-# Since BMI is the numerical value of a scale different from other variables we redcode the data to the same scale.
+hist(df$bmi,col = "blue",breaks = 100,xlim = c(12,60),main="Histogram For BMI",xlab='BMI')
+# Since BMI is the numerical value of a scale different from other variables we recode the data to the same scale.
 # 1,2,3,4,5 being underweight,fit,healthy,overweight and obese respectively.
 df$bmi[df$bmi <= 18.5] = 1
 df$bmi[df$bmi > 18.5 & df$bmi <= 20] = 2
@@ -44,8 +32,11 @@ df$bmi[df$bmi > 30] = 5
 nreqAttributes <- names(df) %in% c("Height","Weight")
 df <- df[!nreqAttributes]
 ```
+##FEATURE EXTRACTION
+The process of feature extraction involves analyzing the data set to find the variables that should be used to classify, finding the relevant features to be used for classification.
+We study the personality traits group of our data set and extract the features as **happinessSadness**
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 happinessFactors <- c("Hypochondria","Loneliness","Dreams","Number.of.friends","Mood.swings",
                       "Getting.angry","Life.struggles","Happiness.in.life","Energy.levels","Personality")
 happinessSadness <- df[happinessFactors]
@@ -54,15 +45,23 @@ happinessSadness <- df[happinessFactors]
 # plot we can infer that none of the variables under study are very highly correlated.So,we use these ten 
 # factors across sections of our dataset to find the variables which effect these factors the most and in 
 # the end effect the happiness / sadness of people.
+#print("Distribution of Happiness Factors")
+```
+####Distribution of Happiness Factors
+```{r}
+
 par(mfrow=c(2,5),mar=c(2,2,2,2))
 for (factorV in happinessFactors){
   hist(happinessSadness[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
 }
-
+#mtext("Distribution of Happiness factors",side=1,line=-32,adj=1,padj=0)
 ```
-We need to verify our assumption,as to our these factors actually detrminants of someone's happiness in life.
+
+We need to verify our assumption,as to our these factors actually determinants of someone's happiness in life.
 We use logistic regression to predict happiness in life using the other variables.
-```{r}
+
+####LOGISTIC REGRESSION
+```{r warning = FALSE,message=FALSE}
 formulaStr <- paste(names(happinessSadness[c(1:7,9,10)]), collapse='+')
 formulaStr <- paste("Happiness.in.life ~",formulaStr)
 # as.formula(formulaStr)
@@ -73,7 +72,7 @@ tempTestData <- tempTestData[happinessFactors]
 predictedV <- predict(logitModel,tempTestData)
 # polr(as.formula(formulaStr),happinessSadness)
 
-plot(logitModel$residuals,logitModel$fitted.values)
+plot(logitModel$residuals,logitModel$fitted.values,main="Plot of Fitted vs Residual values",xlab="Residuals",ylab="Fitted values")
 # Function for Root Mean Squared Error
 RMSE <- function(error) { sqrt(mean(error^2)) }
 RMSE(logitModel$residuals)
@@ -85,7 +84,9 @@ mae <- function(error) { mean(abs(error)) }
 mae(logitModel$residuals)
 ```
 
-```{r}
+####Principle Component Analysis
+We perform Principal Component Analysis on the extracted features to obtain an independent variable which represents how Happy someone really is.
+```{r warning = FALSE,message=FALSE}
 modify <- function(x) 5-x
 modifiedHappinessSadness <- data.frame(happinessSadness[,c('Dreams','Number.of.friends','Happiness.in.life','Energy.levels','Personality')], lapply(happinessSadness[,c('Hypochondria','Loneliness','Mood.swings','Getting.angry','Life.struggles')], modify) )
 
@@ -95,7 +96,7 @@ Happy <- vector(length = 986)
 modifiedHappinessSadness = cbind(modifiedHappinessSadness,pcaHappinessSadness,Happy)
 colnames(modifiedHappinessSadness)[11] <- "pcaHappinessSadness"
 pcaCorrelation = cor(happinessSadness,pca$x[,1:4])
-corrplot(pcaCorrelation)
+corrplot(pcaCorrelation,title="Correlation of principle components with happiness sadness factors",mar=c(0,0,2,0))
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness < 0] = "FALSE"
 modifiedHappinessSadness$Happy[modifiedHappinessSadness$pcaHappinessSadness > 0] = "TRUE"
 df$Happy <- modifiedHappinessSadness$Happy
@@ -103,6 +104,9 @@ happinessCount <- table(df$Happy,df$Gender)
 barplot(happinessCount, main = paste("Happy vs Gender"), col = c("red","blue"))
 legend("topright",legend = rownames(happinessCount),fill = c("red","blue") ,ncol = 1,cex = 0.4)
 ```
+
+This function is used for finding contribution of the relevant attributes on principle components.
+
 ```{r}
 # Helper function 
 varCoordFunc <- function(loadings, comp.sdev){
@@ -121,15 +125,14 @@ compCos2 <- apply(varCos2, 2, sum)
 contrib <- function(varCos2, compCos2){varCos2*100/compCos2}
 varContrib <- t(apply(varCos2,1, contrib, compCos2))
 varContrib[,1:2]
-
-
-
-
 ```
+We obtain relevant attributes by observing the correlation values.
+We compute the correlation between these attributes by using Goodman and Kruskal's gamma method.
 
+**findCorrelation function**-This is the function used to find rank correlation of various attributes in the data set with respect to a predictor variable like "Happy" or "Happiness in life" using Goodman and Kruskal's gamma method.
+We compare values of each attribute with the predictor variable and consider only those attributes which give a gamma value<-0.25 or gamma value>0.25. 
 
-
-```{r}
+```{r warning = FALSE,message=FALSE}
 
 findCorrelation <- function(workingData,predictorVariable){
   corrVals <- list()
@@ -154,8 +157,8 @@ return(relevantTraits)
 }
 
 ```
-
-```{r}
+We encode happiness value "TRUE" as 1 and happiness value "FALSE" as 0.
+```{r warning = FALSE,message=FALSE}
 # Analysis of various traits wrt Happy Label.
 df$Happy[df$Happy == TRUE] = 1
 df$Happy[df$Happy == FALSE] = 0
@@ -165,19 +168,22 @@ nreqVariables = names(workingData) %in% happinessFactors
 relevantAttributes1 <- findCorrelation(workingData = workingData[!nreqVariables],workingData$Happy)
 
 ```
-```{r}
+```{r warning = FALSE,message=FALSE}
 relevantAttributes2 <- findCorrelation(workingData = workingData[!(names(workingData) %in% c('Happy','Happiness.in.life'))],workingData$Happiness.in.life)
 ```
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 library(clue)
 library(factoextra)
 library(caret)
 library(scales)
 
 ```
-
-```{r}
+**rawData1** has the attributes having correlation magnitude >0.25 with respect "Happy" variable.
+**trainData1** has 80% of rawData1 which is used for training models.
+**testData1** has 20% of rawData1 which is used for predicting based on the trained models.
+**resultsDF** dataframe has the predicted values of different clustering techniques along with "Happy" values of Test data used for comparison of accuracy.
+```{r warning = FALSE,message=FALSE}
 
 # Preparing Data for clustering,scaling all the attributes to 1-5,omitting categorical data.
 rawData1 <- na.omit(df[as.vector(relevantAttributes1$Attributes)])
@@ -194,31 +200,38 @@ testData1 <- rawData1[nrowsTrain:nrow(rawData1),]
 resultsDF <- data.frame(testData1$Happy)
 columnNames <- colnames(rawData1)
 resultsList = list()
+```
+####Visualization of Relevant attributes
+````{r warning = FALSE,message=FALSE}
+
 par(mfrow=c(2,5),mar=c(2,2,2,2))
 for (factorV in columnNames[1:15]){
   hist(trainData1[[factorV]],breaks = c(0,1,2,3,4,5),freq = FALSE,col="#3399FF",main="",mgp=c(1,0,0),xlab=factorV)
 }
-```
 
+``` 
 
+##K-MEANS CLUSTERING
+k-means clustering aims to partition the observations into k clusters in which each observation belongs to the cluster with the nearest mean.
+This method uses 2-norm distance metric(Euclidean distance) for classifying the observations into clusters.
+We consider k=4.
 ```{r}
 #K-Means clustering for the data
-#Method 1
 fviz_nbclust(trainData1, kmeans, method = "wss") +
-  geom_vline(xintercept = 5, linetype = 2)
+  geom_vline(xintercept = 3, linetype = 2)
 set.seed(123)
 km.res <- kmeans(trainData1, 3, nstart = 25,iter.max = 10000)
 km.res$centers
-fviz_cluster(km.res, data = trainData1)
+fviz_cluster(km.res, data = trainData1,main="K-means cluster plot wrt Happy factor with k=3")
 kmeansCluster <- trainData1
 kmeansCluster$clusterNo <- km.res$cluster
-clusplot(kmeansCluster[c("Adrenaline.sports","Active.sport","Health")],kmeansCluster$clusterNo)
+clusplot(kmeansCluster[c("Adrenaline.sports","Active.sport","Health")],kmeansCluster$clusterNo,main="Effect of active engagement in activities on happiness")
 clusplot(kmeansCluster[c("Changing.the.past","Spiders","Storm","Darkness")],kmeansCluster$clusterNo,main = "Negative Impactors of Happy Clustered together")
-clusplot(kmeansCluster[c(colnames(trainData1))],kmeansCluster$clusterNo)
-table(kmeansCluster$Darkness,kmeansCluster$clusterNo)
+
 ```
 
-```{r}
+We plot the clusters obtained after clustering.
+```{r warning = FALSE,message=FALSE}
 library(gridExtra)
 for(factorV in colnames(trainData1)){
 tempdf <- kmeansCluster %>%
@@ -235,8 +248,8 @@ tempdf <- kmeansCluster %>%
 
 ```
 
-
-```{r}
+We predict the clusters for test data based on the k-means model trained and then compare the accuracy of the prediction by comparing with actual data.
+```{r warning = FALSE,message=FALSE}
 predictedCluster <- as.vector(cl_predict(km.res,testData1))
 resultsDF$PredictedKmean = predictedCluster
 resultsDF$PredictedKmean[resultsDF$PredictedKmean == 3| resultsDF$PredictedKmean == 2] = 0
@@ -244,31 +257,32 @@ resultsDF$PredictedKmean[resultsDF$PredictedKmean == 1] = 1
 resultsList$Kmeans <- confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedKmean,levels = 0:1),positive = '1',mode="prec_recall")
 print(resultsList$Kmeans)
 ```
+####Method 2 of K-means clustering for "Happiness in life"
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 rawData2 <- na.omit(df[as.vector(relevantAttributes2$Attributes)])
 rawData2$Happiness.in.life <- na.omit(df$Happiness.in.life)
 rawData2$happinessModified = rawData2$Happiness.in.life
 rawData2$happinessModified[rawData2$happinessModified<=3] = 0
 rawData2$happinessModified[rawData2$happinessModified>3] = 1
-rawData2[-c(10)]
+#rawData2[-c(10)]
 nrowsTrain <- 0.9*nrow(rawData2)
 trainData2 <- rawData2[1:nrowsTrain,]
 actualData <- df[nrowsTrain:nrow(df),]
 testData2 <- rawData2[nrowsTrain:nrow(rawData2),]
 ```
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 fviz_nbclust(trainData2, kmeans, method = "wss") +
-  geom_vline(xintercept = 5, linetype = 2)
+  geom_vline(xintercept = 3, linetype = 2)
 set.seed(123)
 km.res <- kmeans(trainData2, 3, nstart = 25)
 tempCenters <- as.data.frame(km.res$centers)
 print(tempCenters)
-fviz_cluster(km.res, data = trainData2)
+fviz_cluster(km.res, data = trainData2,main="K-means cluster plot wrt Happiness in life with k=3")
 ```
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 predictedCluster <- as.vector(cl_predict(km.res,testData2))
 testData2$PredictedKmean2 = predictedCluster
 testData2$PredictedKmean[testData2$PredictedKmean == 5] = 2
@@ -282,31 +296,13 @@ confusionMatrix(factor(actualData$Happiness.in.life,levels = 1:5),factor(testDat
 
 ```
 
-```{r}
-# We obtain an accuracy of 74.51%
-# 
-# #Method 2
-# set.seed(123)
-# km_res2 <- eclust(rawData, "kmeans", k = 4,nstart = 25, graph = FALSE)
-# fviz_cluster(km_res2, data=trainData)
-#Note that, silhouette coefficient measures how well an observation is clustered and it estimates the average distance between clusters
-#(i.e, the average silhouette width).Observations with negative silhouette are probably placed in the wrong cluster.
-# fviz_silhouette(km_res2)
-# predictedCluster <- as.vector(cl_predict(km.res2,testData))
-# testData$Predicted = predictedCluster
-# testData$Predicted[testData$Predicted <=2] = 0
-# testData$Predicted[testData$Predicted >2] = 1
-# print(table(as.factor(actualData$Happy),as.factor(testData$Predicted)))
-# confusionMatrix(as.factor(actualData$Happy),as.factor(testData$Predicted))
-#We get accuracy of 67.65% using this method
 
-```
 ##HIERARCHICAL CLUSTERING
-Hierarchical clustering is an approach for identifying clustering in the dataset by using pairwise distance matrix between observations as clustering criteria.
+Hierarchical clustering is an approach for identifying clustering in the complete *rawData1* dataset by using pairwise distance matrix between observations as clustering criteria.
 We perform hierarchical clustering using k=2 i.e classifying into 2 clusters.
 We have used "complete" method of hierarchical clustering.
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 #Hierarchical clustering for all the relevant attributes
 ##For k=2
 library(dendextend)
@@ -366,12 +362,12 @@ predictedData<-modifiedDendClusters$predicted.clusters
 unionData <- union(predictedData,referenceData)
 tableData <- table(factor(predictedData, unionData), factor(referenceData, unionData))
 confusionMatrix(tableData,positive = '1',mode="prec_recall")
-#We get an accuracy of 52.13%
 ```
 
-Hierarchical clustering and prediction on test data.
-Here also we classify into 2 clusters by taking k=2 and we use the "ward.D" method.
-```{r}
+###Hierarchical clustering and prediction on Test data.
+Here also we classify into 2 clusters by taking k=2.
+
+```{r warning = FALSE,message=FALSE}
 #Hierarchical clustering and prediction using test data
 library(dendextend)
 library(colorspace)
@@ -401,7 +397,8 @@ plot(dendTest,
 legend("topleft", legend = happyLevelsTest, fill = rainbow_hcl(2))
 ```
 
-```{r}
+We use the "ward.D" method of hierarchical clustering.
+```{r warning = FALSE,message=FALSE}
 hclusteringMethodTest <- c("ward.D")
 hclustDendlistTest <- dendlist()
 for(i in seq_along(hclusteringMethodTest)) {
@@ -430,8 +427,8 @@ for (i in 1:nrow(modifiedDendClustersTest))
 }
 resultsDF<-cbind(resultsDF,modifiedDendClustersTest)
 ```
-
-```{r}
+We compare the accuracy of the predicted and actual values obtained by hierarchical clustering.
+```{r warning = FALSE,message=FALSE}
 #For the confusion Matrix
 referenceDataTest<-testData1$Happy
 predictedDataHierarchicalTest<-resultsDF$predictedHierarchical
@@ -439,102 +436,24 @@ unionDataHierarchicalTest <- union(predictedDataHierarchicalTest,referenceDataTe
 tableDataHierarchicalTest <- table(factor(predictedDataHierarchicalTest, unionDataHierarchicalTest), factor(referenceDataTest, unionDataHierarchicalTest))
 resultsList$Hierarchical <- confusionMatrix(tableDataHierarchicalTest,positive = '1',mode="prec_recall")
 print(resultsList$Hierarchical)
-#We get an accuracy of 63.13%
 ```
 
+##K-MEDOID CLUSTERING
+It is a partitional algorithm related to K-means and medoid shifting algorithms which uses medoids i.e., the points in the data set as centres
+We have partitioned into six clusters.
+```{r warning = FALSE,message=FALSE}
 
-```{r}
-#Decision Tree using CART method
-set.seed(1)
-library(rpart)
-library(rpart.plot)
-
-fit <- rpart(Happy~., data = trainData1, method = 'class')
-rpart.plot(fit, extra = 101,main="Decision Tree using CART method")
-
-predictedVal <-predict(fit, testData1, type = 'class')
-
-tableMat <- table(testData1$Happy, predictedVal)
-resultsList$DecTreeCart <- confusionMatrix(tableMat,positive = '1',mode="prec_recall")
-
-
-```
-C5.0 is an extension of ID3 algorithm to generate a decision tree and uses normalized information gain as the criteria to split the samples into a class.
-
-```{r}
-#Decision Tree using C5.0
-library(C50)
-set.seed(123)
-formulaStrDt <- paste(names(trainData1[c(1:2,5,9,13)]), collapse='+')
-formulaStrDt <- paste("factor(Happy) ~",formulaStrDt)
-model <- C5.0(as.formula(formulaStrDt),data=trainData1)
-plot(model,main="Decision Tree for C5.0 method")
-resultsDF$predictedDTC5 = predict(model,testData1)
-resultsList$DecTreeC50 <- confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
-print(resultsList$DecTreeC50)
-```
-
-
-Random Forest is an ensemble classification method that generates multiple decision trees and outputs the mode of the classes.
-```{r}
-#Decision tree using Random Forest
-library(randomForest)
-set.seed(1)
-rf = randomForest(factor(Happy)~.,data = trainData1,ntree=750)
-plot(rf)
-varImpPlot(rf,main="Importance of variables")
-resultsDF$predictedRf = predict(rf,testData1)
-resultsList$DecTreeRF <- confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive = '1',mode="prec_recall")
-print(resultsList$DecTreeRF)
-```
-
-
-```{r}
-#SVM linear
-library(e1071)
-svmLinearModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="linear")
-resultsDF$predictedSvmLinear = predict(svmLinearModel,testData1)
-resultsList$svmLin <- confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
-print(resultsList$svmLin)
-plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
-
-```
-
-```{r}
-#SVM polynomial
-
-svmPolyModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="polynomial")
-resultsDF$predictedSvmPoly = predict(svmPolyModel,testData1)
-resultsList$svmPoly <- confusionMatrix(factor(resultsDF$predictedSvmPoly),factor(testData1$Happy),positive = '1',mode="prec_recall")
-print(resultsList$svmPoly)
-plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
-
-```
-
-```{r}
-#SVM radial 
-
-svmRadialModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="radial")
-resultsDF$predictedSvmRadial = predict(svmRadialModel,testData1)
-resultsList$svmRadial <- confusionMatrix(factor(resultsDF$predictedSvmRadial),factor(testData1$Happy),positive = '1',mode="prec_recall")
-print(resultsList$svmRadial)
-plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
-
-```
-
-```{r}
-
-#Pam Clustering
+#k-medoid Clustering
 
 library(cluster)
 
 set.seed(123)
 pam.res <- pam(trainData1, 6)
 pam.res$medoids
-fviz_cluster(pam.res, data = trainData1)
+fviz_cluster(pam.res, data = trainData1,main="K-Medoid Clustering with 6 clusters")
 ```
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 predictedClusterPam <- as.vector(cl_predict(pam.res,testData1))
 resultsDF$PredictedPam = predictedClusterPam
 resultsDF$PredictedPam[resultsDF$PredictedPam == 3 |resultsDF$PredictedPam == 5 | resultsDF$PredictedPam == 6] = 0
@@ -547,9 +466,8 @@ print(resultsList$KMedoid)
 k-medians clustering partitions the observations into k clusters in which each observation belongs to the cluster with the nearest median.
 This method uses 1-norm distance metric(Manhattan distance) for classifying the observations into clusters.
 We consider k=4 and perform k-medians clustering on the Training data.This model is used to predict the clusters for Test data.
-The accuracy is obtained by comparing the actual and predicted cluster values of Test data.
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 library(flexclust)
 set.seed(12)
 #Considering k=4
@@ -567,27 +485,32 @@ clusplot(trainData1,kMedianTrainClusters,main = paste("CLUSPLOT For K Medians(k=
 predClusterMedian<- predict(kMedian, newdata=testData1, k=4, kccaFamily("kmedians"))
 ```
 
-
-```{r}
+From the above predicted clusters, we observe that clusters 1,3 have median values 0 and clusters 2,4 have median value as 1.
+Therefore we recode the cluster values as the median values in order to compare with the actual Happy values.
+```{r warning = FALSE,message=FALSE}
 resultsDF$predictedKMedian = predClusterMedian
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 2| resultsDF$predictedKMedian  == 4] = 0
 resultsDF$predictedKMedian[resultsDF$predictedKMedian == 1| resultsDF$predictedKMedian  == 3] = 1
 #Computing a confusion matrix of the predicted and actual data
 resultsList$KMedian <- confusionMatrix(factor(resultsDF$predictedKMedian,levels = 0:1),factor(testData1$Happy ,levels = 0:1),positive = '1',mode="prec_recall")
 print(resultsList$KMedian)
-#Accuracy=68.69%
+
 ```
 
-
-```{r}
+##Fuzzy c-means(FCM)
+Fuzzy c-means(soft clustering or soft k-means) is a clustering technique which allows each observation to belong to more than one cluster.
+Each observation is assigned a membership grade for each cluster it belongs to.
+We partition into 3 clusters.
+```{r warning = FALSE,message=FALSE}
 # set.seed(1)
 library(cluster)
+library(e1071)
 cmeansCluster <- cmeans(trainData1,centers = 3 ,iter.max = 100, verbose = FALSE,dist = "manhattan", method = "cmeans", m = 2,rate.par = NULL, weights = 1, control = list())
 print(cmeansCluster$centers)
-clusplot(trainData1,cmeansCluster$cluster)
+clusplot(trainData1,cmeansCluster$cluster,main="CLUSPLOT for Fuzzy C-Means with 3 clusters")
 ```
 
-```{r}
+```{r warning = FALSE,message=FALSE}
 resultsDF$PredictedCmeans <- cl_predict(cmeansCluster,testData1,type = "class_ids")
 resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 3] = 0
 resultsDF$PredictedCmeans[resultsDF$PredictedCmeans == 1| resultsDF$PredictedCmeans == 2] = 1
@@ -595,7 +518,91 @@ resultsList$Cmeans <- confusionMatrix(factor(actualData1$Happy,levels = 0:1),fac
 print(resultsList$Cmeans)
 ```
 
-```{r}
+##DECISION TREE
+Decision Tree creates a model that predicts the value of target variable by learning simple decision rules inferred from the features.We have implemented the CART and C5.0(an extension of ID3 algorithm) algorithms for decision tree.
+```{r warning = FALSE,message=FALSE}
+#Decision Tree using CART method
+set.seed(1)
+library(rpart)
+library(rpart.plot)
+
+fit <- rpart(Happy~., data = trainData1, method = 'class')
+rpart.plot(fit, extra = 101,main="Decision Tree using CART method")
+
+predictedVal <-predict(fit, testData1, type = 'class')
+
+tableMat <- table(testData1$Happy, predictedVal)
+resultsList$DecTreeCart <- confusionMatrix(tableMat,positive = '1',mode="prec_recall")
+
+
+```
+C5.0 is an extension of ID3 algorithm to generate a decision tree and uses normalized information gain as the criteria to split the samples into a class.
+
+```{r warning = FALSE,message=FALSE}
+#Decision Tree using C5.0
+library(C50)
+set.seed(123)
+formulaStrDt <- paste(names(trainData1[c(1:2,5,9,13)]), collapse='+')
+formulaStrDt <- paste("factor(Happy) ~",formulaStrDt)
+model <- C5.0(as.formula(formulaStrDt),data=trainData1)
+plot(model,main="Decision Tree for C5.0 method")
+resultsDF$predictedDTC5 = predict(model,testData1)
+resultsList$DecTreeC50 <- confusionMatrix(factor(resultsDF$predictedDTC5),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$DecTreeC50)
+```
+##RANDOM FOREST
+
+Random Forest is an ensemble classification method that generates multiple decision trees and outputs the mode of the classes.
+```{r warning = FALSE,message=FALSE}
+#Decision tree using Random Forest
+library(randomForest)
+set.seed(1)
+rf = randomForest(factor(Happy)~.,data = trainData1,ntree=750)
+plot(rf,main="Error plot for Random Forest")
+varImpPlot(rf,main="Importance of variables")
+resultsDF$predictedRf = predict(rf,testData1)
+resultsList$DecTreeRF <- confusionMatrix(factor(resultsDF$predictedRf),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$DecTreeRF)
+```
+##SUPPORT VECTOR MACHINES
+It is a supervised machine learning algorithm which plots the data points in an n-dimensional space where n is the number of features and the value of a particular coordinate is the value of the feature.
+
+###SVM linear method
+```{r warning = FALSE,message=FALSE}
+#SVM linear
+svmLinearModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="linear")
+resultsDF$predictedSvmLinear = predict(svmLinearModel,testData1)
+resultsList$svmLin <- confusionMatrix(factor(resultsDF$predictedSvmLinear),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmLin)
+plot(svmLinearModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+
+```
+
+###SVM polynomial method
+```{r warning = FALSE,message=FALSE}
+#SVM polynomial
+
+svmPolyModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="polynomial")
+resultsDF$predictedSvmPoly = predict(svmPolyModel,testData1)
+resultsList$svmPoly <- confusionMatrix(factor(resultsDF$predictedSvmPoly),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmPoly)
+plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+
+```
+
+###SVM radial method
+```{r warning = FALSE,message=FALSE}
+#SVM radial 
+
+svmRadialModel = svm(Happy~.,data = trainData1,type="C-classification",kernel="radial")
+resultsDF$predictedSvmRadial = predict(svmRadialModel,testData1)
+resultsList$svmRadial <- confusionMatrix(factor(resultsDF$predictedSvmRadial),factor(testData1$Happy),positive = '1',mode="prec_recall")
+print(resultsList$svmRadial)
+plot(svmPolyModel,data=trainData1,Changing.the.past ~ Interests.or.hobbies) 
+
+```
+
+```{r warning = FALSE,message=FALSE}
 resultListNames <- names(resultsList)
 for(i in c(1:11)){
   print(resultListNames[i])  
@@ -603,8 +610,9 @@ for(i in c(1:11)){
   print(resultsList[[i]]$byClass["F1"])
 }
 ```
-Majority vote: It’s defined as taking the prediction with maximum vote / recommendation from multiple models predictions while predicting the outcomes of a classification problem.
-```{r}
+## ENSEMBLE CLASSIFICATION
+Majority vote: It is defined as taking the prediction with maximum vote / recommendation from multiple models predictions while predicting the outcomes of a classification problem.
+```{r warning = FALSE,message=FALSE}
 determineMajority <- function(resDF,n){
   for(i in 1:nrow(resDF)) 
   {
@@ -620,8 +628,8 @@ determineMajority <- function(resDF,n){
 resultsDF[] <- lapply(resultsDF, function(x) as.numeric(as.character(x)))
 resultsDF <- as.data.frame(resultsDF)
 resultsDF$PredictedVote = 1:nrow(resultsDF)
-resultsDF$PredictedClusterVote = determineMajority(resultsDF[c(2,9:11)],3)
-resultsDF$PredictedVote = determineMajority(resultsDF[c(2,4,5,8,11)],3)
+resultsDF$PredictedClusterVote = determineMajority(resultsDF[c(2,3:5)],3)
+resultsDF$PredictedVote = determineMajority(resultsDF[c(2,3,5,8,11)],3)
 confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedClusterVote,levels = 0:1),positive = '1',mode="prec_recall")
 confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$PredictedVote,levels = 0:1),positive = '1',mode="prec_recall")
 ```
@@ -629,20 +637,21 @@ confusionMatrix(factor(actualData1$Happy,levels = 0:1),factor(resultsDF$Predicte
 
 Weighted average: In this, different weights are applied to predictions from multiple models then taking the average which means giving high or low importance to specific model output.
 Assigning weights based on the accuracies of the models.
-We address the task of choosing prior weights for models that are to be used for weighted model averaging.
-Models that are very similar should usually be given smaller weights than models that are quite distinct.
-The weighting schemes give smaller weights to models that are more highly correlated. Other desirable properties of a weighting scheme are identified, and we examine the extent to which these properties are held by the proposed methods.
-The weighting schemes are applied to real data, and prior weights, posterior weights and Bayesian model averages are determined. For these data, empirical Bayes methods were used to form the correlation matrices that yield the prior weights. Predictive variances are examined, as empirical Bayes methods can result in unrealistically small variances.
-```{r}
-importantResults <- resultsDF[c(2,3,4,6,9,10,11)]
+**wAverageDetermination**-This function is used to pass each row of the required columns from the data to the **wAverageRow** function.
+**wAverageRow** function takes each row of data passed to it and averages based on the weights assigned to different algorithms.
+
+
+
+```{r warning = FALSE,message=FALSE}
+importantResults <- resultsDF[c(2,3,4,5,6,8,11)]
 corrMatrix <- cor(importantResults)
 corrplot(corrMatrix,method = "number",title = "Correlation Between Different Models",mar = c(0,0,2,0))
-corrplot(cov(importantResults),method = "number",title = "Covariace Between Different Models",mar = c(0,0,2,0))
+corrplot(cov(importantResults),method = "number",title = "Covariance Between Different Models",mar = c(0,0,2,0))
 ```
 From the above results we observe there is no significant correlation or covariance between two models.Hence considering all of them is essential.The weights can hence be assigned according to the accuracies of the different models.
 We observe a significant correlation between Kmeans and Kmedian proving the similarity of the methods altogether.
 We consider the other algorithms with following weights
-```{r}
+```{r warning = FALSE,message=FALSE}
 # table(resultsDF)
 wAverageRow <- function(row){
   weights <- c(3,1,3,3,3,7)/20
@@ -651,7 +660,7 @@ wAverageRow <- function(row){
 wAverageDetermination <- function(){
   for(i in 1:nrow(resultsDF)) 
   {
-    resultsDF$PredictedWA[i] = wAverageRow(resultsDF[i,][c(2,3,4,6,9,11)])
+    resultsDF$PredictedWA[i] = wAverageRow(resultsDF[i,][c(2,3,4,8,11,6)])
     if(resultsDF$PredictedWA[i] >= 0.5){
       resultsDF$PredictedVote[i] = 1
     }
