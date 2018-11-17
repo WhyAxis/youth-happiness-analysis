@@ -45,7 +45,7 @@ Following is the description of the different packages used.
 ## Flow Diagram
 <img src="DA_flowdiagram.jpg"
      alt="Markdown Monster icon"
-     style="margin-left:20%; margin-right: 10%;" />
+     style="margin-left:30%; margin-right: 10%;height:200px;width:200px" />
 
 
 ### Preprocessing
