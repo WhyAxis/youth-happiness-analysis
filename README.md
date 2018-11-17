@@ -44,8 +44,8 @@ Following is the description of the different packages used.
   
 ## Flow Diagram
 <img src="DA_flowdiagram.jpg"
-     alt="Markdown Monster icon"
-     style="margin-left:30%; margin-right: 10%;height:200px;width:250px" />
+     alt="flowdiagram"
+     style="margin-left:30%; margin-right: 10%;height:200px;width:25 0px" />
 
 
 ### Preprocessing
@@ -74,12 +74,21 @@ We have clustered and analysed the various factors which have an impact on happi
     - k-means
     - k-medians
     - k-medoid
-+ cmeans algorithm
-+ Support Vector machine
++ Fuzzy C-means algorithm
++ Support Vector machines
 + Decision tree
-+ Pam clustering
-### Modeling and Prediction
-
-### Comparing of models and Ensemble
++ Hierarchical clustering
++ Random Forest
   
+  
+  
+### Comparison of models and Ensemble
+<img src="comparison_table.png"
+     alt="comparison_table"
+     style="margin-left:10%; margin-right: 10%;height:100%;width:60%" />
+
+### Conclusion
+On comparing various algorithms with respect to our data set we concluded that C-Means is the best performing algorithm and giving it more weight in our ensemble gives us very good accuracy.
+
+We obtain an 18.8% increase in accuracy due to ensemble.
   
